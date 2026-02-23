@@ -6,21 +6,36 @@ import { usePresentationStore } from '@/store/presentationStore';
 import { useToast } from './Toast';
 
 /**
- * Trigger a file download from a Blob.
- * Uses a data URL approach for maximum browser compatibility (Safari included).
+ * Reliable cross-browser file download.
+ * Uses File constructor for name metadata + MouseEvent dispatch.
  */
-function triggerDownload(blob: Blob, filename: string) {
-    const reader = new FileReader();
-    reader.onloadend = () => {
-        const a = document.createElement('a');
-        a.href = reader.result as string;
-        a.download = filename;
-        a.style.display = 'none';
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-    };
-    reader.readAsDataURL(blob);
+function downloadFile(data: BlobPart, filename: string, mimeType: string) {
+    // Create a File (not just Blob) so it carries the filename metadata
+    const file = new File([data], filename, { type: mimeType });
+    const url = URL.createObjectURL(file);
+
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = filename;
+    link.rel = 'noopener';
+    link.style.position = 'fixed';
+    link.style.left = '-9999px';
+    document.body.appendChild(link);
+
+    // Use MouseEvent dispatch instead of .click() for broader compatibility
+    link.dispatchEvent(
+        new MouseEvent('click', {
+            bubbles: true,
+            cancelable: true,
+            view: window,
+        })
+    );
+
+    // Cleanup after a delay
+    setTimeout(() => {
+        document.body.removeChild(link);
+        URL.revokeObjectURL(url);
+    }, 1000);
 }
 
 export default function ExportBar() {
@@ -37,7 +52,11 @@ export default function ExportBar() {
         try {
             const { buildPptxBlob } = await import('@/lib/exportPptx');
             const blob = await buildPptxBlob(slides);
-            triggerDownload(blob, 'SlideBuilder-Presentation.pptx');
+            downloadFile(
+                blob,
+                'SlideBuilder-Presentation.pptx',
+                'application/vnd.openxmlformats-officedocument.presentationml.presentation'
+            );
             showToast('success', 'Export Complete', 'Your PPTX file has been downloaded.');
         } catch (err) {
             const msg = err instanceof Error ? err.message : 'Export failed';
@@ -53,7 +72,7 @@ export default function ExportBar() {
         try {
             const { buildPdfBlob } = await import('@/lib/exportPdf');
             const blob = await buildPdfBlob(slides);
-            triggerDownload(blob, 'SlideBuilder-Presentation.pdf');
+            downloadFile(blob, 'SlideBuilder-Presentation.pdf', 'application/pdf');
             showToast('success', 'Export Complete', 'Your PDF file has been downloaded.');
         } catch (err) {
             const msg = err instanceof Error ? err.message : 'Export failed';
