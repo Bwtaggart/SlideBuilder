@@ -49,6 +49,7 @@ export default function SlideInspector() {
                         templateBase64: selectedTemplate.base64,
                         slidePrompt: `${globalPrompt}. ${slide.local_prompt}`,
                         title: slide.title,
+                        subtitle: slide.subtitle,
                         bullets: slide.bullets,
                         aspectRatio,
                         negativePrompt,
@@ -188,21 +189,36 @@ export default function SlideInspector() {
                             />
                         </div>
 
-                        {/* Bullets */}
+                        {/* Subtitle */}
                         <div>
-                            <label className="label" htmlFor="slide-bullets">
-                                <List size={12} style={{ display: 'inline', marginRight: 4, verticalAlign: 'middle' }} />
-                                Slide Bullets <span style={{ color: 'var(--color-text-muted)', fontWeight: 400, textTransform: 'none' }}>(one per line)</span>
+                            <label className="label" htmlFor="slide-subtitle">
+                                <Type size={12} style={{ display: 'inline', marginRight: 4, verticalAlign: 'middle' }} />
+                                Sub Heading <span style={{ color: 'var(--color-text-muted)', fontWeight: 400, textTransform: 'none' }}>(optional)</span>
                             </label>
-                            <textarea
-                                id="slide-bullets"
-                                className="textarea-field"
-                                value={slide.bullets.join('\n')}
-                                onChange={(e) => handleBulletChange(e.target.value)}
-                                placeholder="• Revenue up 40%&#10;• 500+ clients&#10;• Global presence"
-                                style={{ minHeight: 60, fontFamily: 'var(--font-sans)' }}
+                            <input
+                                id="slide-subtitle"
+                                className="input-field"
+                                value={slide.subtitle}
+                                onChange={(e) => updateSlide(activeSlideIndex, { subtitle: e.target.value })}
+                                placeholder="e.g., Building a better future together"
                             />
                         </div>
+                    </div>
+
+                    {/* Bullets — full width */}
+                    <div>
+                        <label className="label" htmlFor="slide-bullets">
+                            <List size={12} style={{ display: 'inline', marginRight: 4, verticalAlign: 'middle' }} />
+                            Slide Bullets <span style={{ color: 'var(--color-text-muted)', fontWeight: 400, textTransform: 'none' }}>(one per line)</span>
+                        </label>
+                        <textarea
+                            id="slide-bullets"
+                            className="textarea-field"
+                            value={slide.bullets.join('\n')}
+                            onChange={(e) => handleBulletChange(e.target.value)}
+                            placeholder="• Revenue up 40%&#10;• 500+ clients&#10;• Global presence"
+                            style={{ minHeight: 60, fontFamily: 'var(--font-sans)' }}
+                        />
                     </div>
 
                     {/* Generate Button */}

@@ -52,6 +52,7 @@ const initialSlide: () => Slide = () => ({
     slide_index: 0,
     local_prompt: '',
     title: '',
+    subtitle: '',
     bullets: [],
     image_url: '',
     speaker_notes: '',

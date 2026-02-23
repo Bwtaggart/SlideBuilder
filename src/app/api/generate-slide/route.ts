@@ -5,7 +5,7 @@ const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY! });
 
 export async function POST(req: NextRequest) {
     try {
-        const { templateBase64, slidePrompt, title, bullets, aspectRatio, negativePrompt } = await req.json();
+        const { templateBase64, slidePrompt, title, subtitle, bullets, aspectRatio, negativePrompt } = await req.json();
 
         if (!templateBase64 || !slidePrompt) {
             return NextResponse.json({ error: 'Template and slide prompt are required' }, { status: 400 });
@@ -15,6 +15,9 @@ export async function POST(req: NextRequest) {
         let textOverlay = '';
         if (title) {
             textOverlay += `\nThe slide must prominently display the title text: "${title}"`;
+        }
+        if (subtitle) {
+            textOverlay += `\nDirectly below the title, display a smaller subtitle/sub-heading: "${subtitle}"`;
         }
         if (bullets && bullets.length > 0) {
             textOverlay += `\nThe slide must include these bullet points rendered as legible text: ${bullets.map((b: string) => `"${b}"`).join(', ')}`;

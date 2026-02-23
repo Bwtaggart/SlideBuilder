@@ -30,6 +30,7 @@ export interface Slide {
   slide_index: number;
   local_prompt: string;
   title: string;
+  subtitle: string;
   bullets: string[];
   rendered_text_payload?: string;
   image_url: string;
