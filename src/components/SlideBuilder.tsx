@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useRef, useCallback } from 'react';
 import { Plus, Trash2, GripVertical, Image as ImageIcon } from 'lucide-react';
 import { usePresentationStore } from '@/store/presentationStore';
 import SlideInspector from './SlideInspector';
@@ -13,7 +13,49 @@ export default function SlideBuilder() {
         setActiveSlideIndex,
         addSlide,
         deleteSlide,
+        reorderSlides,
     } = usePresentationStore();
+
+    // ── Drag-and-drop state ──
+    const [dragIndex, setDragIndex] = useState<number | null>(null);
+    const [dropIndex, setDropIndex] = useState<number | null>(null);
+    const dragNodeRef = useRef<HTMLDivElement | null>(null);
+
+    const handleDragStart = useCallback((e: React.DragEvent<HTMLDivElement>, index: number) => {
+        setDragIndex(index);
+        dragNodeRef.current = e.currentTarget;
+        e.dataTransfer.effectAllowed = 'move';
+        // Use a transparent image so we see the custom drag style instead
+        const ghost = document.createElement('div');
+        ghost.style.opacity = '0';
+        document.body.appendChild(ghost);
+        e.dataTransfer.setDragImage(ghost, 0, 0);
+        setTimeout(() => document.body.removeChild(ghost), 0);
+    }, []);
+
+    const handleDragOver = useCallback((e: React.DragEvent<HTMLDivElement>, index: number) => {
+        e.preventDefault();
+        e.dataTransfer.dropEffect = 'move';
+        if (dragIndex !== null && index !== dragIndex) {
+            setDropIndex(index);
+        }
+    }, [dragIndex]);
+
+    const handleDragEnd = useCallback(() => {
+        if (dragIndex !== null && dropIndex !== null && dragIndex !== dropIndex) {
+            reorderSlides(dragIndex, dropIndex);
+            // Keep the active slide following the dragged slide
+            if (activeSlideIndex === dragIndex) {
+                setActiveSlideIndex(dropIndex);
+            } else if (dragIndex < activeSlideIndex && dropIndex >= activeSlideIndex) {
+                setActiveSlideIndex(activeSlideIndex - 1);
+            } else if (dragIndex > activeSlideIndex && dropIndex <= activeSlideIndex) {
+                setActiveSlideIndex(activeSlideIndex + 1);
+            }
+        }
+        setDragIndex(null);
+        setDropIndex(null);
+    }, [dragIndex, dropIndex, activeSlideIndex, reorderSlides, setActiveSlideIndex]);
 
     return (
         <div style={{ display: 'flex', height: 'calc(100vh - 60px)', animation: 'fade-in 0.4s ease-out' }}>
@@ -70,11 +112,18 @@ export default function SlideBuilder() {
                 <div style={{ flex: 1, padding: 8, display: 'flex', flexDirection: 'column', gap: 6 }}>
                     {slides.map((slide, index) => {
                         const isActive = index === activeSlideIndex;
+                        const isDragging = index === dragIndex;
+                        const isDropTarget = index === dropIndex && dragIndex !== null;
+
                         return (
                             <div
                                 key={slide.slide_id}
                                 role="button"
                                 tabIndex={0}
+                                draggable
+                                onDragStart={(e) => handleDragStart(e, index)}
+                                onDragOver={(e) => handleDragOver(e, index)}
+                                onDragEnd={handleDragEnd}
                                 onClick={() => setActiveSlideIndex(index)}
                                 onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') setActiveSlideIndex(index); }}
                                 style={{
@@ -82,14 +131,22 @@ export default function SlideBuilder() {
                                     aspectRatio: '16/10',
                                     borderRadius: 8,
                                     overflow: 'hidden',
-                                    border: isActive
-                                        ? '2px solid var(--color-accent-cyan)'
-                                        : '1px solid var(--color-border-default)',
+                                    border: isDropTarget
+                                        ? '2px solid var(--color-accent-purple)'
+                                        : isActive
+                                            ? '2px solid var(--color-accent-cyan)'
+                                            : '1px solid var(--color-border-default)',
                                     background: 'var(--color-bg-card)',
-                                    cursor: 'pointer',
-                                    transition: 'all 0.2s ease',
+                                    cursor: 'grab',
+                                    transition: 'all 0.15s ease',
                                     padding: 0,
-                                    boxShadow: isActive ? '0 0 12px rgba(0,212,255,0.15)' : 'none',
+                                    opacity: isDragging ? 0.4 : 1,
+                                    transform: isDropTarget ? 'scale(1.03)' : 'none',
+                                    boxShadow: isDropTarget
+                                        ? '0 0 16px rgba(168,85,247,0.3)'
+                                        : isActive
+                                            ? '0 0 12px rgba(0,212,255,0.15)'
+                                            : 'none',
                                 }}
                             >
                                 {slide.image_url ? (
@@ -97,7 +154,8 @@ export default function SlideBuilder() {
                                     <img
                                         src={slide.image_url}
                                         alt={`Slide ${index + 1}`}
-                                        style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
+                                        style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block', pointerEvents: 'none' }}
+                                        draggable={false}
                                     />
                                 ) : (
                                     <div
@@ -136,6 +194,27 @@ export default function SlideBuilder() {
                                     }}
                                 >
                                     {index + 1}
+                                </div>
+
+                                {/* Drag grip icon */}
+                                <div
+                                    style={{
+                                        position: 'absolute',
+                                        bottom: 4,
+                                        right: 4,
+                                        width: 18,
+                                        height: 18,
+                                        borderRadius: 4,
+                                        background: 'rgba(0,0,0,0.5)',
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        justifyContent: 'center',
+                                        color: 'rgba(255,255,255,0.5)',
+                                        opacity: 0.6,
+                                    }}
+                                    title="Drag to reorder"
+                                >
+                                    <GripVertical size={10} />
                                 </div>
 
                                 {/* Delete button (only when more than 1 slide) */}
