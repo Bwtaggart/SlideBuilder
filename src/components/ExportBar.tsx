@@ -6,32 +6,45 @@ import { usePresentationStore } from '@/store/presentationStore';
 import { useToast } from './Toast';
 
 /**
- * Reliable cross-browser file download.
- * Uses File constructor for name metadata + MouseEvent dispatch.
+ * Download a file using the File System Access API (Chrome 86+).
+ * Opens a native "Save As" dialog with the suggested filename.
+ * Falls back to anchor-based download if unavailable.
  */
-function downloadFile(data: BlobPart, filename: string, mimeType: string) {
-    // Create a File (not just Blob) so it carries the filename metadata
-    const file = new File([data], filename, { type: mimeType });
-    const url = URL.createObjectURL(file);
+async function downloadFile(blob: Blob, filename: string, mimeType: string): Promise<void> {
+    // Try the File System Access API first (Chrome, Edge)
+    if ('showSaveFilePicker' in window) {
+        try {
+            const ext = filename.split('.').pop() || '';
+            const handle = await (window as unknown as { showSaveFilePicker: (opts: unknown) => Promise<FileSystemFileHandle> }).showSaveFilePicker({
+                suggestedName: filename,
+                types: [
+                    {
+                        description: ext.toUpperCase() + ' File',
+                        accept: { [mimeType]: ['.' + ext] },
+                    },
+                ],
+            });
+            const writable = await handle.createWritable();
+            await writable.write(blob);
+            await writable.close();
+            return;
+        } catch (e: unknown) {
+            // User cancelled the save dialog
+            if (e instanceof Error && e.name === 'AbortError') return;
+            // API unavailable or failed — fall through to anchor method
+        }
+    }
 
+    // Fallback: anchor-based download
+    const file = new File([blob], filename, { type: mimeType });
+    const url = URL.createObjectURL(file);
     const link = document.createElement('a');
     link.href = url;
     link.download = filename;
-    link.rel = 'noopener';
     link.style.position = 'fixed';
     link.style.left = '-9999px';
     document.body.appendChild(link);
-
-    // Use MouseEvent dispatch instead of .click() for broader compatibility
-    link.dispatchEvent(
-        new MouseEvent('click', {
-            bubbles: true,
-            cancelable: true,
-            view: window,
-        })
-    );
-
-    // Cleanup after a delay
+    link.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true, view: window }));
     setTimeout(() => {
         document.body.removeChild(link);
         URL.revokeObjectURL(url);
@@ -52,7 +65,7 @@ export default function ExportBar() {
         try {
             const { buildPptxBlob } = await import('@/lib/exportPptx');
             const blob = await buildPptxBlob(slides);
-            downloadFile(
+            await downloadFile(
                 blob,
                 'SlideBuilder-Presentation.pptx',
                 'application/vnd.openxmlformats-officedocument.presentationml.presentation'
@@ -72,7 +85,7 @@ export default function ExportBar() {
         try {
             const { buildPdfBlob } = await import('@/lib/exportPdf');
             const blob = await buildPdfBlob(slides);
-            downloadFile(blob, 'SlideBuilder-Presentation.pdf', 'application/pdf');
+            await downloadFile(blob, 'SlideBuilder-Presentation.pdf', 'application/pdf');
             showToast('success', 'Export Complete', 'Your PDF file has been downloaded.');
         } catch (err) {
             const msg = err instanceof Error ? err.message : 'Export failed';
