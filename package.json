@@ -8,7 +8,7 @@
     "start": "next start",
     "lint": "eslint",
     "slides-up": "next dev -p 3000 > /tmp/slidebuilder.log 2>&1 & echo \"SlideBuilder started on http://localhost:3000 (PID: $!)\"",
-    "slides-down": "lsof -ti :3000 | xargs kill -9 2>/dev/null && echo 'SlideBuilder stopped' || echo 'Not running'",
+    "slides-down": "pids=$(lsof -ti :3000); if [ -n \"$pids\" ]; then echo \"$pids\" | xargs kill -9 && echo 'SlideBuilder stopped'; else echo 'Not running'; fi",
     "slides-logs": "tail -f /tmp/slidebuilder.log"
   },
   "dependencies": {

@@ -30,6 +30,9 @@ export default function SlideInspector() {
     const [inpaintPrompt, setInpaintPrompt] = useState('');
     const [isInpainting, setIsInpainting] = useState(false);
     const [pendingMask, setPendingMask] = useState<BoundingBox | null>(null);
+    const handleMaskComplete = useCallback((box: BoundingBox) => {
+        setPendingMask(box);
+    }, []);
 
     const slide = slides[activeSlideIndex];
     if (!slide) return null;
@@ -96,10 +99,6 @@ export default function SlideInspector() {
             setIsGeneratingSlide(false);
         }
     };
-
-    const handleMaskComplete = useCallback((box: BoundingBox) => {
-        setPendingMask(box);
-    }, []);
 
     const handleInpaint = async () => {
         if (!pendingMask || !inpaintPrompt.trim() || !slide.image_url) return;

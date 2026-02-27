@@ -2,7 +2,7 @@
 
 import { useRef, useState, useCallback } from 'react';
 import type { BoundingBox } from '@/lib/types';
-import { Scissors, X, RotateCcw, Maximize2, Minimize2 } from 'lucide-react';
+import { Scissors, RotateCcw, Maximize2, Minimize2 } from 'lucide-react';
 
 interface Props {
     imageUrl: string;

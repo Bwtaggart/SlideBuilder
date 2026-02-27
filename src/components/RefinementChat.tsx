@@ -73,7 +73,9 @@ export default function RefinementChat() {
                 imageUrl: data.imageBase64 ? `data:image/png;base64,${data.imageBase64}` : undefined,
             };
             addChatMessage(assistantMsg);
-            addCost('nano_banana_image', 1);
+            if (data.imageBase64) {
+                addCost('nano_banana_image', 1);
+            }
         } catch (err) {
             const msg = err instanceof Error ? err.message : 'An error occurred';
             showToast('error', 'Refinement Error', msg);

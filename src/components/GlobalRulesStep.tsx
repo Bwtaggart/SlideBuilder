@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useRef, useCallback } from 'react';
-import { Sparkles, Wand2, ShieldAlert, Upload, Loader2, Image as ImageIcon } from 'lucide-react';
+import { Sparkles, Wand2, ShieldAlert, Upload, Image as ImageIcon } from 'lucide-react';
 import { usePresentationStore } from '@/store/presentationStore';
 import { useCostStore } from '@/store/costStore';
 import { useToast } from './Toast';

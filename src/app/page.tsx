@@ -41,12 +41,18 @@ function useAutoSave() {
       globalPrompt,
       negativePrompt,
       aspectRatio,
-      templateCount: templateImages.length,
-      selectedTemplateId: selectedTemplate?.id,
-      slideCount: slides.length,
-      slideImages: slides.map((s) => s.image_url ? 'yes' : 'no'),
-      slideTitles: slides.map((s) => s.title),
-      slidePrompts: slides.map((s) => s.local_prompt),
+      templateImages,
+      selectedTemplate,
+      slides: slides.map((s) => ({
+        slide_id: s.slide_id,
+        slide_index: s.slide_index,
+        local_prompt: s.local_prompt,
+        title: s.title,
+        subtitle: s.subtitle,
+        bullets: s.bullets,
+        image_url: s.image_url,
+        speaker_notes: s.speaker_notes,
+      })),
     });
 
     // Skip if nothing changed
