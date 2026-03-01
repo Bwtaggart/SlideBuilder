@@ -122,7 +122,7 @@ export default function GlobalRulesStep() {
             setTemplateImages([template]);
             setSelectedTemplate(template);
 
-            addCost('gemini_text', 1);
+            addCost('gemini_text', Number(data.tokensUsed) || 500);
             showToast('success', 'Template Analyzed', `Style learned from "${file.name}". Prompts auto-generated.`);
 
             // Jump straight to Slide Builder

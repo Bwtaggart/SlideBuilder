@@ -40,6 +40,22 @@ export interface Slide {
 // ─── App Types ─────────────────────────────────────────────────────
 
 export type AspectRatio = '16:9' | '4:3' | '9:16';
+export type PptxExportMode = 'image' | 'hybrid_editable';
+
+export interface TextBoxRect {
+  xPct: number;
+  yPct: number;
+  wPct: number;
+  hPct: number;
+}
+
+export interface SlideTextLayout {
+  title: TextBoxRect;
+  subtitle: TextBoxRect;
+  bullets: TextBoxRect;
+}
+
+export type AspectRatioTextLayouts = Record<AspectRatio, SlideTextLayout>;
 
 export interface BoundingBox {
   x: number;

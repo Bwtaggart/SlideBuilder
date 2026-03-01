@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import type { Slide, AspectRatio, TemplateImage, ChatMessage, WizardStep } from '@/lib/types';
+import type { Slide, AspectRatio, TemplateImage, ChatMessage, WizardStep, PptxExportMode } from '@/lib/types';
 
 function generateId(): string {
     return `${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
@@ -30,7 +30,9 @@ interface PresentationState {
     slides: Slide[];
     activeSlideIndex: number;
     isGeneratingSlide: boolean;
+    pptxExportMode: PptxExportMode;
     setActiveSlideIndex: (index: number) => void;
+    setPptxExportMode: (mode: PptxExportMode) => void;
     addSlide: () => void;
     updateSlide: (index: number, updates: Partial<Slide>) => void;
     deleteSlide: (index: number) => void;
@@ -83,7 +85,9 @@ export const usePresentationStore = create<PresentationState>((set, get) => ({
     slides: [initialSlide()],
     activeSlideIndex: 0,
     isGeneratingSlide: false,
+    pptxExportMode: 'hybrid_editable',
     setActiveSlideIndex: (index) => set({ activeSlideIndex: index }),
+    setPptxExportMode: (mode) => set({ pptxExportMode: mode }),
     addSlide: () => {
         const { slides } = get();
         const newSlide = initialSlide();
@@ -139,6 +143,7 @@ export const usePresentationStore = create<PresentationState>((set, get) => ({
             selectedTemplate: null,
             slides: [initialSlide()],
             activeSlideIndex: 0,
+            pptxExportMode: 'hybrid_editable',
             chatMessages: [],
         }),
 }));

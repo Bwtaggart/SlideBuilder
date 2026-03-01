@@ -14,7 +14,7 @@ import { useProjectStore } from '@/store/projectStore';
  */
 function useAutoSave() {
   const { activeProjectId, updateProject } = useProjectStore();
-  const { globalPrompt, negativePrompt, aspectRatio, templateImages, selectedTemplate, slides } =
+  const { globalPrompt, negativePrompt, aspectRatio, templateImages, selectedTemplate, slides, pptxExportMode } =
     usePresentationStore();
   const timerRef = useRef<NodeJS.Timeout | null>(null);
   const prevDataRef = useRef<string>('');
@@ -29,9 +29,10 @@ function useAutoSave() {
       templateImages,
       selectedTemplate,
       slides,
+      pptxExportMode,
       thumbnailUrl: thumbnail,
     });
-  }, [activeProjectId, globalPrompt, negativePrompt, aspectRatio, templateImages, selectedTemplate, slides, updateProject]);
+  }, [activeProjectId, globalPrompt, negativePrompt, aspectRatio, templateImages, selectedTemplate, slides, pptxExportMode, updateProject]);
 
   useEffect(() => {
     if (!activeProjectId) return;
@@ -43,6 +44,7 @@ function useAutoSave() {
       aspectRatio,
       templateImages,
       selectedTemplate,
+      pptxExportMode,
       slides: slides.map((s) => ({
         slide_id: s.slide_id,
         slide_index: s.slide_index,
@@ -68,7 +70,7 @@ function useAutoSave() {
     return () => {
       if (timerRef.current) clearTimeout(timerRef.current);
     };
-  }, [activeProjectId, globalPrompt, negativePrompt, aspectRatio, templateImages, selectedTemplate, slides, doSave]);
+  }, [activeProjectId, globalPrompt, negativePrompt, aspectRatio, templateImages, selectedTemplate, slides, pptxExportMode, doSave]);
 }
 
 export default function Home() {

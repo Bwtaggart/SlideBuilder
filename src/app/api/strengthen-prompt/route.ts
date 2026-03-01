@@ -1,7 +1,5 @@
-import { GoogleGenAI } from '@google/genai';
 import { NextRequest, NextResponse } from 'next/server';
-
-const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY! });
+import { getGeminiClient } from '@/lib/gemini';
 
 export async function POST(req: NextRequest) {
     try {
@@ -11,6 +9,7 @@ export async function POST(req: NextRequest) {
             return NextResponse.json({ error: 'Prompt is required' }, { status: 400 });
         }
 
+        const ai = getGeminiClient();
         const systemInstruction = `You are a master prompt engineer specializing in AI image generation prompts. Your job is to take a user's rough prompt and transform it into a highly detailed, vivid, and effective prompt that will produce stunning results from an AI image generator.
 
 Rules:

@@ -1,7 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { GoogleGenAI } from '@google/genai';
-
-const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY! });
+import { getGeminiClient } from '@/lib/gemini';
 
 /**
  * POST /api/analyze-template
@@ -44,6 +42,7 @@ Rules:
             }
         }
 
+        const ai = getGeminiClient();
         const response = await ai.models.generateContent({
             model: 'gemini-2.5-flash',
             contents: [
@@ -69,6 +68,7 @@ Rules:
         });
 
         const text = response.text || '';
+        const usage = (response as { usageMetadata?: { totalTokenCount?: number } }).usageMetadata;
 
         // Parse the JSON response
         let parsed;
@@ -88,7 +88,7 @@ Rules:
             globalPrompt: parsed.globalPrompt || '',
             negativePrompt: parsed.negativePrompt || '',
             slideDescription: parsed.slideDescription || '',
-            tokensUsed: 500, // Approximate
+            tokensUsed: usage?.totalTokenCount || Math.ceil((systemInstruction.length + text.length + 1000) / 4),
         });
     } catch (error) {
         console.error('Analyze template error:', error);

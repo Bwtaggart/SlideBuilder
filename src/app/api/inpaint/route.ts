@@ -1,7 +1,5 @@
-import { GoogleGenAI } from '@google/genai';
 import { NextRequest, NextResponse } from 'next/server';
-
-const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY! });
+import { getGeminiClient } from '@/lib/gemini';
 
 export async function POST(req: NextRequest) {
     try {
@@ -14,6 +12,7 @@ export async function POST(req: NextRequest) {
             );
         }
 
+        const ai = getGeminiClient();
         // Convert percentage-based mask bounds to description for the model
         const { x, y, width, height } = maskBounds;
         const regionDesc = `The region to modify is approximately at position (${Math.round(x)}%, ${Math.round(y)}%) from the top-left, spanning ${Math.round(width)}% wide and ${Math.round(height)}% tall of the image.`;

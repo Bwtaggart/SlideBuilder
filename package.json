@@ -7,9 +7,11 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "slides-up": "next dev -p 3000 > /tmp/slidebuilder.log 2>&1 & echo \"SlideBuilder started on http://localhost:3000 (PID: $!)\"",
-    "slides-down": "pids=$(lsof -ti :3000); if [ -n \"$pids\" ]; then echo \"$pids\" | xargs kill -9 && echo 'SlideBuilder stopped'; else echo 'Not running'; fi",
-    "slides-logs": "tail -f /tmp/slidebuilder.log"
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "slides-up": "./slides-up",
+    "slides-down": "./slides-down",
+    "slides-logs": "./slides-logs"
   },
   "dependencies": {
     "@google/genai": "^1.42.0",
@@ -32,6 +34,7 @@
     "eslint": "^9",
     "eslint-config-next": "16.1.6",
     "tailwindcss": "^4",
-    "typescript": "^5"
+    "typescript": "^5",
+    "vitest": "^3.2.4"
   }
 }

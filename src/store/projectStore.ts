@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { getAllProjects, putProject, deleteProjectFromDB } from '@/lib/idb';
-import type { Slide, AspectRatio, TemplateImage } from '@/lib/types';
+import type { Slide, AspectRatio, TemplateImage, PptxExportMode } from '@/lib/types';
 
 export interface SavedProject {
     id: string;
@@ -13,9 +13,14 @@ export interface SavedProject {
     templateImages: TemplateImage[];
     selectedTemplate: TemplateImage | null;
     slides: Slide[];
+    pptxExportMode?: PptxExportMode;
     /** First slide thumbnail for the card preview */
     thumbnailUrl: string;
 }
+
+type SaveProjectInput = Omit<SavedProject, 'id' | 'createdAt' | 'updatedAt' | 'thumbnailUrl'> & {
+    thumbnailUrl?: string;
+};
 
 interface ProjectState {
     projects: SavedProject[];
@@ -23,7 +28,7 @@ interface ProjectState {
     isLoaded: boolean;
 
     loadProjects: () => Promise<void>;
-    saveProject: (name: string, data: Omit<SavedProject, 'id' | 'createdAt' | 'updatedAt' | 'thumbnailUrl'> & { thumbnailUrl?: string }) => Promise<string>;
+    saveProject: (name: string, data: SaveProjectInput) => Promise<string>;
     updateProject: (id: string, data: Partial<Omit<SavedProject, 'id' | 'createdAt'>>) => Promise<void>;
     deleteProject: (id: string) => Promise<void>;
     setActiveProjectId: (id: string | null) => void;
@@ -41,6 +46,11 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
 
     loadProjects: async () => {
         const projects = await getAllProjects<SavedProject>();
+        for (const project of projects) {
+            if (!project.pptxExportMode) {
+                project.pptxExportMode = 'hybrid_editable';
+            }
+        }
         // Sort by most recently updated
         projects.sort((a, b) => b.updatedAt - a.updatedAt);
         set({ projects, isLoaded: true });
@@ -79,6 +89,7 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
             templateImages: data.templateImages,
             selectedTemplate: data.selectedTemplate,
             slides: data.slides,
+            pptxExportMode: data.pptxExportMode || 'hybrid_editable',
             thumbnailUrl: data.thumbnailUrl || '',
         };
         await putProject(project);

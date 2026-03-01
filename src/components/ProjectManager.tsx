@@ -47,6 +47,7 @@ export default function ProjectManager({ onOpenProject }: Props) {
             templateImages: project.templateImages,
             selectedTemplate: project.selectedTemplate,
             slides: project.slides,
+            pptxExportMode: project.pptxExportMode || 'hybrid_editable',
             currentStep: project.selectedTemplate ? 3 : project.templateImages.length > 0 ? 2 : 1,
         });
         setActiveProjectId(project.id);

@@ -1,7 +1,5 @@
-import { GoogleGenAI } from '@google/genai';
 import { NextRequest, NextResponse } from 'next/server';
-
-const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY! });
+import { getGeminiClient } from '@/lib/gemini';
 
 export async function POST(req: NextRequest) {
     try {
@@ -11,6 +9,7 @@ export async function POST(req: NextRequest) {
             return NextResponse.json({ error: 'Global prompt is required' }, { status: 400 });
         }
 
+        const ai = getGeminiClient();
         // Generate 4 template variations with slightly different prompts
         const variations = [
             `Create a professional presentation slide template. ${globalPrompt}. Clean layout with space for title and content. Variation 1: emphasize bold geometric shapes.${negativePrompt ? ` Avoid: ${negativePrompt}` : ''}`,
