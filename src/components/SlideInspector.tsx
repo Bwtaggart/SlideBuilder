@@ -149,7 +149,7 @@ export default function SlideInspector() {
     };
 
     return (
-        <div style={{ maxWidth: 900, margin: '0 auto' }}>
+        <div style={{ maxWidth: 1240, margin: '0 auto' }}>
             {/* ─── Input Section ─── */}
             <div className="glass-panel" style={{ padding: 20, marginBottom: 16 }}>
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: 16 }}>
