@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useCallback } from 'react';
-import { Sparkles, Type, List, MessageSquare, Loader2, Image as ImageIcon } from 'lucide-react';
+import { Sparkles, Type, List, MessageSquare, Loader2, Image as ImageIcon, Wand2, ShieldAlert } from 'lucide-react';
 import { usePresentationStore } from '@/store/presentationStore';
 import { useCostStore } from '@/store/costStore';
 import { useToast } from './Toast';
@@ -18,6 +18,8 @@ export default function SlideInspector() {
         selectedTemplate,
         globalPrompt,
         negativePrompt,
+        setGlobalPrompt,
+        setNegativePrompt,
         aspectRatio,
         isGeneratingSlide,
         setIsGeneratingSlide,
@@ -151,6 +153,48 @@ export default function SlideInspector() {
             {/* ─── Input Section ─── */}
             <div className="glass-panel" style={{ padding: 20, marginBottom: 16 }}>
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: 16 }}>
+                    {/* Shared Global Prompt Controls */}
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
+                        <div>
+                            <label className="label" htmlFor="global-prompt-inline">
+                                <Wand2 size={12} style={{ display: 'inline', marginRight: 4, verticalAlign: 'middle' }} />
+                                Global Prompt
+                                <PromptStrengthener
+                                    value={globalPrompt}
+                                    onResult={setGlobalPrompt}
+                                    context="global presentation style prompt for AI image generation"
+                                />
+                            </label>
+                            <textarea
+                                id="global-prompt-inline"
+                                className="textarea-field"
+                                value={globalPrompt}
+                                onChange={(e) => setGlobalPrompt(e.target.value)}
+                                placeholder="Applies to every slide generation in this deck"
+                                style={{ minHeight: 74 }}
+                            />
+                        </div>
+                        <div>
+                            <label className="label" htmlFor="negative-prompt-inline">
+                                <ShieldAlert size={12} style={{ display: 'inline', marginRight: 4, verticalAlign: 'middle' }} />
+                                Negative Prompt
+                                <PromptStrengthener
+                                    value={negativePrompt}
+                                    onResult={setNegativePrompt}
+                                    context="negative prompt — things to avoid in AI image generation"
+                                />
+                            </label>
+                            <textarea
+                                id="negative-prompt-inline"
+                                className="textarea-field"
+                                value={negativePrompt}
+                                onChange={(e) => setNegativePrompt(e.target.value)}
+                                placeholder="Things to avoid across all slides (optional)"
+                                style={{ minHeight: 74 }}
+                            />
+                        </div>
+                    </div>
+
                     {/* Concept Prompt */}
                     <div>
                         <label className="label" htmlFor="slide-prompt">
