@@ -8,13 +8,14 @@ import { useToast } from './Toast';
 import CanvasOverlay from './CanvasOverlay';
 import RefinementChat from './RefinementChat';
 import PromptStrengthener from './PromptStrengthener';
-import type { BoundingBox } from '@/lib/types';
+import type { BoundingBox, Slide } from '@/lib/types';
 
 export default function SlideInspector() {
     const {
         slides,
         activeSlideIndex,
         updateSlide,
+        insertSlidesAfter,
         selectedTemplate,
         globalPrompt,
         negativePrompt,
@@ -31,6 +32,7 @@ export default function SlideInspector() {
     const [isMaskEnabled, setIsMaskEnabled] = useState(false);
     const [inpaintPrompt, setInpaintPrompt] = useState('');
     const [isInpainting, setIsInpainting] = useState(false);
+    const [variationCount, setVariationCount] = useState<1 | 2 | 3 | 4>(1);
     const [pendingMask, setPendingMask] = useState<BoundingBox | null>(null);
     const handleMaskComplete = useCallback((box: BoundingBox) => {
         setPendingMask(box);
@@ -45,21 +47,32 @@ export default function SlideInspector() {
         clearChat();
 
         try {
-            // Fire image and notes in parallel
-            const [imageRes, notesRes] = await Promise.all([
+            const finalTitle = slide.title.trim();
+            const finalSubtitle = slide.subtitle.trim();
+            const finalBullets = slide.bullets.map((b) => b.trim()).filter(Boolean);
+
+            const imageRequests = Array.from({ length: variationCount }, (_, index) =>
                 fetch('/api/generate-slide', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
                         templateBase64: selectedTemplate.base64,
+                        templateId: selectedTemplate.id,
                         slidePrompt: `${globalPrompt}. ${slide.local_prompt}`,
-                        title: slide.title,
-                        subtitle: slide.subtitle,
-                        bullets: slide.bullets,
+                        title: finalTitle,
+                        subtitle: finalSubtitle,
+                        bullets: finalBullets,
                         aspectRatio,
                         negativePrompt,
+                        variationIndex: index + 1,
+                        totalVariations: variationCount,
                     }),
-                }),
+                })
+            );
+
+            // Fire image variations and notes in parallel
+            const [imageResults, notesRes] = await Promise.all([
+                Promise.allSettled(imageRequests),
                 slide.local_prompt
                     ? fetch('/api/generate-notes', {
                         method: 'POST',
@@ -69,20 +82,38 @@ export default function SlideInspector() {
                     : Promise.resolve(null),
             ]);
 
-            if (!imageRes.ok) {
-                const data = await imageRes.json();
-                if (imageRes.status === 400 || imageRes.status === 403) {
-                    showToast('warning', 'Safety Policy', data.error || 'Cannot generate images of real political figures. Please use generic terms.');
-                    return;
+            const imagePayloads: string[] = [];
+            let firstImageError = '';
+
+            for (const result of imageResults) {
+                if (result.status !== 'fulfilled') {
+                    firstImageError = firstImageError || 'Image generation failed';
+                    continue;
                 }
-                throw new Error(data.error || 'Image generation failed');
+
+                const imageRes = result.value;
+                const data = await imageRes.json();
+                if (!imageRes.ok) {
+                    if ((imageRes.status === 400 || imageRes.status === 403) && !imagePayloads.length) {
+                        showToast('warning', 'Safety Policy', data.error || 'Cannot generate this slide with the current prompt.');
+                        return;
+                    }
+                    firstImageError = firstImageError || data.error || 'Image generation failed';
+                    continue;
+                }
+                if (data.imageBase64) {
+                    imagePayloads.push(`data:image/png;base64,${data.imageBase64}`);
+                }
             }
 
-            const imageData = await imageRes.json();
+            if (imagePayloads.length === 0) {
+                throw new Error(firstImageError || 'Image generation failed');
+            }
+
             const updates: Record<string, unknown> = {
-                image_url: `data:image/png;base64,${imageData.imageBase64}`,
+                image_url: imagePayloads[0],
             };
-            addCost('nano_banana_image', 1);
+            addCost('nano_banana_image', imagePayloads.length);
 
             if (notesRes && notesRes.ok) {
                 const notesData = await notesRes.json();
@@ -93,7 +124,22 @@ export default function SlideInspector() {
             }
 
             updateSlide(activeSlideIndex, updates);
-            showToast('success', 'Slide Generated', 'Your slide has been created with speaker notes.');
+            if (imagePayloads.length > 1) {
+                const insertedSlides: Slide[] = imagePayloads.slice(1).map((imageUrl, index) => ({
+                    ...slide,
+                    slide_id: `${Date.now()}-${index}-${Math.random().toString(36).slice(2, 9)}`,
+                    slide_index: activeSlideIndex + 1 + index,
+                    bullets: [...slide.bullets],
+                    image_url: imageUrl,
+                    speaker_notes: typeof updates.speaker_notes === 'string' ? updates.speaker_notes : slide.speaker_notes,
+                }));
+                insertSlidesAfter(activeSlideIndex, insertedSlides);
+            }
+
+            const successMessage = imagePayloads.length === variationCount
+                ? `Created ${imagePayloads.length} variation${imagePayloads.length === 1 ? '' : 's'} for this slide.`
+                : `Created ${imagePayloads.length} of ${variationCount} requested variations for this slide.`;
+            showToast('success', 'Slide Generated', successMessage);
         } catch (err) {
             const msg = err instanceof Error ? err.message : 'An error occurred';
             showToast('error', 'Generation Failed', msg);
@@ -159,11 +205,6 @@ export default function SlideInspector() {
                             <label className="label" htmlFor="global-prompt-inline">
                                 <Wand2 size={12} style={{ display: 'inline', marginRight: 4, verticalAlign: 'middle' }} />
                                 Global Prompt
-                                <PromptStrengthener
-                                    value={globalPrompt}
-                                    onResult={setGlobalPrompt}
-                                    context="global presentation style prompt for AI image generation"
-                                />
                             </label>
                             <textarea
                                 id="global-prompt-inline"
@@ -178,11 +219,6 @@ export default function SlideInspector() {
                             <label className="label" htmlFor="negative-prompt-inline">
                                 <ShieldAlert size={12} style={{ display: 'inline', marginRight: 4, verticalAlign: 'middle' }} />
                                 Negative Prompt
-                                <PromptStrengthener
-                                    value={negativePrompt}
-                                    onResult={setNegativePrompt}
-                                    context="negative prompt — things to avoid in AI image generation"
-                                />
                             </label>
                             <textarea
                                 id="negative-prompt-inline"
@@ -264,6 +300,29 @@ export default function SlideInspector() {
                         />
                     </div>
 
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr auto', gap: 16, alignItems: 'end' }}>
+                        <div>
+                            <label className="label" htmlFor="slide-variations">
+                                Variations
+                            </label>
+                            <select
+                                id="slide-variations"
+                                className="input-field"
+                                value={variationCount}
+                                onChange={(e) => setVariationCount(Number(e.target.value) as 1 | 2 | 3 | 4)}
+                                style={{ maxWidth: 180 }}
+                            >
+                                <option value={1}>1 variation</option>
+                                <option value={2}>2 variations</option>
+                                <option value={3}>3 variations</option>
+                                <option value={4}>4 variations</option>
+                            </select>
+                        </div>
+                        <div style={{ color: 'var(--color-text-muted)', fontSize: 12, paddingBottom: 10 }}>
+                            Additional variations are inserted after this slide.
+                        </div>
+                    </div>
+
                     {/* Generate Button */}
                     <button
                         className="btn-primary"
@@ -282,7 +341,7 @@ export default function SlideInspector() {
                         {isGeneratingSlide ? (
                             <>
                                 <Loader2 size={16} style={{ animation: 'spin 0.8s linear infinite' }} />
-                                Generating Slide & Notes...
+                                Generating {variationCount} Variation{variationCount === 1 ? '' : 's'}...
                             </>
                         ) : (
                             <>

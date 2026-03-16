@@ -1,10 +1,12 @@
 'use client';
 
-import { Check, ArrowRight } from 'lucide-react';
+import { Check, ArrowRight, LayoutTemplate } from 'lucide-react';
 import { usePresentationStore } from '@/store/presentationStore';
+import { BLANK_TEMPLATE_ID, createBlankTemplate, isBlankTemplate } from '@/lib/template';
 
 export default function TemplateGallery() {
-    const { templateImages, selectedTemplate, setSelectedTemplate, setStep } = usePresentationStore();
+    const { templateImages, selectedTemplate, setSelectedTemplate, setStep, aspectRatio } = usePresentationStore();
+    const blankTemplate = createBlankTemplate(aspectRatio);
 
     const handleContinue = () => {
         if (selectedTemplate) {
@@ -33,6 +35,72 @@ export default function TemplateGallery() {
                     marginBottom: 32,
                 }}
             >
+                <button
+                    key={BLANK_TEMPLATE_ID}
+                    onClick={() => setSelectedTemplate(blankTemplate)}
+                    style={{
+                        position: 'relative',
+                        aspectRatio: '16/10',
+                        borderRadius: 12,
+                        overflow: 'hidden',
+                        border: isBlankTemplate(selectedTemplate)
+                            ? '2px solid var(--color-accent-cyan)'
+                            : '2px solid var(--color-border-default)',
+                        cursor: 'pointer',
+                        transition: 'all 0.25s ease',
+                        background: 'linear-gradient(180deg, rgba(13,18,32,0.98), rgba(8,11,20,0.98))',
+                        boxShadow: isBlankTemplate(selectedTemplate)
+                            ? '0 0 24px rgba(0,212,255,0.25), inset 0 0 20px rgba(0,212,255,0.05)'
+                            : 'none',
+                        padding: 20,
+                        display: 'flex',
+                        flexDirection: 'column',
+                        justifyContent: 'space-between',
+                        textAlign: 'left',
+                    }}
+                >
+                    <div
+                        style={{
+                            width: 42,
+                            height: 42,
+                            borderRadius: 12,
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            background: 'rgba(0,212,255,0.08)',
+                            border: '1px solid rgba(0,212,255,0.18)',
+                        }}
+                    >
+                        <LayoutTemplate size={20} style={{ color: 'var(--color-accent-cyan)' }} />
+                    </div>
+                    <div>
+                        <div style={{ fontSize: 18, fontWeight: 700, marginBottom: 6 }}>
+                            Blank Canvas
+                        </div>
+                        <p style={{ color: 'var(--color-text-secondary)', fontSize: 14, lineHeight: 1.5, margin: 0 }}>
+                            Build slides from scratch with no locked frame. Your global prompt will define the visual style.
+                        </p>
+                    </div>
+                    {isBlankTemplate(selectedTemplate) && (
+                        <div
+                            style={{
+                                position: 'absolute',
+                                top: 10,
+                                right: 10,
+                                width: 28,
+                                height: 28,
+                                borderRadius: '50%',
+                                background: 'var(--color-accent-cyan)',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                boxShadow: '0 0 12px rgba(0,212,255,0.5)',
+                            }}
+                        >
+                            <Check size={16} style={{ color: 'var(--color-bg-primary)' }} />
+                        </div>
+                    )}
+                </button>
                 {templateImages.map((img) => {
                     const isSelected = selectedTemplate?.id === img.id;
                     return (

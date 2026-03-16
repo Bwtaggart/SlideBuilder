@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getGeminiClient } from '@/lib/gemini';
+import { extractGeminiErrorMessage } from '@/lib/geminiError';
 
 export async function POST(req: NextRequest) {
     try {
@@ -62,7 +63,12 @@ export async function POST(req: NextRequest) {
 
         if (err.status === 400 || err.status === 403) {
             return NextResponse.json(
-                { error: 'Safety Policy: Cannot process this request. Please use generic terms.' },
+                {
+                    error: extractGeminiErrorMessage(
+                        error,
+                        'Request blocked by model safety policy. Please revise the prompt and try again.'
+                    ),
+                },
                 { status: err.status }
             );
         }

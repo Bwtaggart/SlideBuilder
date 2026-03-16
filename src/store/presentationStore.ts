@@ -23,7 +23,7 @@ interface PresentationState {
     selectedTemplate: TemplateImage | null;
     isGeneratingTemplates: boolean;
     setTemplateImages: (images: TemplateImage[]) => void;
-    setSelectedTemplate: (template: TemplateImage) => void;
+    setSelectedTemplate: (template: TemplateImage | null) => void;
     setIsGeneratingTemplates: (v: boolean) => void;
 
     // Slides (Step 3)
@@ -34,6 +34,7 @@ interface PresentationState {
     setActiveSlideIndex: (index: number) => void;
     setPptxExportMode: (mode: PptxExportMode) => void;
     addSlide: () => void;
+    insertSlidesAfter: (index: number, slidesToInsert: Slide[]) => void;
     updateSlide: (index: number, updates: Partial<Slide>) => void;
     deleteSlide: (index: number) => void;
     reorderSlides: (fromIndex: number, toIndex: number) => void;
@@ -95,6 +96,26 @@ export const usePresentationStore = create<PresentationState>((set, get) => ({
         set({
             slides: [...slides, newSlide],
             activeSlideIndex: slides.length,
+        });
+    },
+    insertSlidesAfter: (index, slidesToInsert) => {
+        if (slidesToInsert.length === 0) return;
+        const { slides } = get();
+        const normalizedInsertions = slidesToInsert.map((slide, insertionIndex) => ({
+            ...slide,
+            slide_index: index + 1 + insertionIndex,
+        }));
+        const updated = [
+            ...slides.slice(0, index + 1),
+            ...normalizedInsertions,
+            ...slides.slice(index + 1),
+        ].map((slide, slideIndex) => ({
+            ...slide,
+            slide_index: slideIndex,
+        }));
+        set({
+            slides: updated,
+            activeSlideIndex: index,
         });
     },
     updateSlide: (index, updates) => {

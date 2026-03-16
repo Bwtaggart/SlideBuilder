@@ -29,7 +29,7 @@ export default function Navbar({ isInProject, onBackToProjects }: Props) {
 
     const canNavigateTo = (step: number) => {
         if (step === 1) return true;
-        if (step === 2) return templateImages.length > 0;
+        if (step === 2) return templateImages.length > 0 || !!selectedTemplate;
         if (step === 3) return !!selectedTemplate;
         return false;
     };

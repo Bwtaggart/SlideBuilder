@@ -35,7 +35,7 @@ export default function CanvasOverlay({ imageUrl, onMaskComplete, enabled, onTog
         setIsDrawing(true);
         setCurrentBox(null);
         setFinalBox(null);
-    }, [enabled, getRelativePos]);
+    }, [enabled, getRelativePos, setStartPos, setIsDrawing, setCurrentBox, setFinalBox]);
 
     const handleMouseMove = useCallback((e: React.MouseEvent) => {
         if (!isDrawing) return;
@@ -54,7 +54,7 @@ export default function CanvasOverlay({ imageUrl, onMaskComplete, enabled, onTog
         if (currentBox.width > 2 && currentBox.height > 2) {
             setFinalBox(currentBox);
         }
-    }, [isDrawing, currentBox]);
+    }, [isDrawing, currentBox, setIsDrawing, setFinalBox]);
 
     const handleApply = () => {
         if (finalBox) {

@@ -9,27 +9,86 @@ export async function POST(req: NextRequest) {
             return NextResponse.json({ error: 'Prompt is required' }, { status: 400 });
         }
 
-        const ai = getGeminiClient();
-        const systemInstruction = `You are a master prompt engineer specializing in AI image generation prompts. Your job is to take a user's rough prompt and transform it into a highly detailed, vivid, and effective prompt that will produce stunning results from an AI image generator.
+        const normalizeContext = (value: unknown): string => {
+            return typeof value === 'string' ? value.toLowerCase() : '';
+        };
 
-Rules:
-- Preserve the user's core intent and subject matter
-- Add specific details: lighting, composition, color palette, mood, texture, style references
-- Use precise descriptive language that image models respond well to
-- Keep it to 2-3 sentences max — dense but not rambling
-- Do NOT add any explanation, just return the improved prompt text
-- If the context says "negative prompt", optimize it as a negative prompt (things to avoid)
-- If the context says "slide concept", frame it as a presentation slide description`;
+        const modeFromContext = (value: string): 'global' | 'negative' | 'slide' | 'generic' => {
+            if (value.includes('negative prompt')) return 'negative';
+            if (value.includes('global')) return 'global';
+            if (value.includes('slide concept')) return 'slide';
+            return 'generic';
+        };
+
+        const mode = modeFromContext(normalizeContext(context));
+
+        const modeInstructionMap: Record<typeof mode, string> = {
+            global: `Output format (single paragraph, 3-5 sentences, no headings):
+- Sentence 1: visual style + tone.
+- Sentence 2: composition/layout guidance.
+- Sentence 3: typography and readability constraints.
+- Sentence 4+: color/material/mood specifics and production-quality constraints.
+Required language:
+- Use concrete directives such as "Use", "Keep", "Place", "Maintain", "Avoid".
+- Use full narrative sentences, not keyword lists.
+- Explicitly describe relationships between major elements (foreground/background, left/right/center).
+- No hedging words (maybe, could, try, might, etc.).
+- Keep template compatibility by favoring central-content changes over frame/chrome changes.`,
+            negative: `Output format (single line, comma-separated phrases):
+- 12-24 explicit exclusions only.
+- Each phrase should be concise and concrete (e.g., "illegible tiny text", "warped letters", "cluttered layout").
+Required language:
+- No explanations.
+- No full sentences.
+- No positive instructions; only exclusions.`,
+            slide: `Output format (single paragraph, 4-6 sentences, no headings):
+- Sentence 1: primary subject + objective of the slide visual.
+- Sentence 2: composition and focal hierarchy.
+- Sentence 3: text treatment and legibility constraints.
+- Sentence 4: data/icon/diagram treatment where relevant.
+- Sentence 5+: lighting/color/finish details.
+Required language:
+- Include explicit constraints for readable title/subtitle/bullets.
+- Use full narrative sentences, not disconnected tags.
+- Specify spatial relationships where useful (left/right/center/top/bottom).
+- Include at least one concrete technical directing cue (camera angle, lighting, or material texture) when it improves clarity.
+- Use concrete directives; no hedging words.
+- Keep directions unambiguous and executable.`,
+            generic: `Output format (single paragraph, 3-5 sentences):
+- Provide concrete, specific generation directives.
+- Include composition, typography/readability, and style constraints.
+Required language:
+- Use directive verbs and avoid hedging words.
+- Use narrative sentence structure and explicit object relationships.
+- Do not include explanations or meta commentary.`,
+        };
+
+        const ai = getGeminiClient();
+        const systemInstruction = `You are a deterministic prompt refiner for AI slide/image generation.
+
+Primary goal:
+- Convert rough prompts into precise, low-ambiguity directives that improve consistency.
+
+Universal rules:
+- Preserve the user's intent and domain terms.
+- Prefer explicit constraints over creative adjectives.
+- Eliminate ambiguity and underspecified language.
+- Convert fragmented or comma-separated "tag soup" input into coherent narrative directives.
+- Avoid hallucinated brand names, copyrighted characters, or real people unless explicitly requested.
+- Return ONLY the strengthened prompt text, no markdown, no quotes, no preface.`;
 
         const response = await ai.models.generateContent({
             model: 'gemini-2.5-flash',
-            contents: `${context ? `Context: ${context}\n\n` : ''}Original prompt: "${prompt}"\n\nReturn ONLY the strengthened prompt, nothing else.`,
+            contents: `${context ? `Context: ${context}\n` : ''}Mode: ${mode}\n\nRefinement requirements:\n${modeInstructionMap[mode]}\n\nOriginal prompt:\n${prompt}`,
             config: {
                 systemInstruction,
+                temperature: 0.2,
+                topP: 0.8,
             },
         });
 
-        const strengthened = response.candidates?.[0]?.content?.parts?.[0]?.text?.trim() || prompt;
+        const strengthenedRaw = response.candidates?.[0]?.content?.parts?.[0]?.text?.trim() || prompt;
+        const strengthened = strengthenedRaw.replace(/^["']|["']$/g, '').trim();
         const tokensUsed = Math.ceil((prompt.length + strengthened.length) / 4);
 
         return NextResponse.json({ strengthened, tokensUsed });

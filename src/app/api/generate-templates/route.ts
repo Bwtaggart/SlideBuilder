@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getGeminiClient } from '@/lib/gemini';
+import { extractGeminiErrorMessage } from '@/lib/geminiError';
 
 export async function POST(req: NextRequest) {
     try {
@@ -53,12 +54,16 @@ export async function POST(req: NextRequest) {
                 }
             } else {
                 console.error(`Template ${i} failed:`, result.reason);
-                // Check for safety errors
                 const error = result.reason;
                 if (error?.status === 400 || error?.status === 403 || error?.message?.includes('safety')) {
                     return NextResponse.json(
-                        { error: 'Safety Policy: Cannot generate images with the provided prompt. Please use generic terms.' },
-                        { status: 400 }
+                        {
+                            error: extractGeminiErrorMessage(
+                                error,
+                                'Request blocked by model safety policy. Please revise the prompt and try again.'
+                            ),
+                        },
+                        { status: error?.status === 403 ? 403 : 400 }
                     );
                 }
             }
@@ -78,7 +83,12 @@ export async function POST(req: NextRequest) {
 
         if (err.status === 400 || err.status === 403) {
             return NextResponse.json(
-                { error: 'Safety Policy: Cannot generate images of real political figures. Please use generic terms.' },
+                {
+                    error: extractGeminiErrorMessage(
+                        error,
+                        'Request blocked by model safety policy. Please revise the prompt and try again.'
+                    ),
+                },
                 { status: err.status }
             );
         }

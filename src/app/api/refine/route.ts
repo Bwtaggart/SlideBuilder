@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getGeminiClient } from '@/lib/gemini';
+import { extractGeminiErrorMessage } from '@/lib/geminiError';
 
 export async function POST(req: NextRequest) {
     try {
@@ -25,7 +26,18 @@ export async function POST(req: NextRequest) {
 
         const contents = [
             {
-                text: `${contextPrompt}You are an AI image editor. The user wants to modify this presentation slide image. User request: "${newMessage}". Edit the image accordingly while maintaining its overall style and quality. Describe what changes you made.`,
+                text: `${contextPrompt}You are an AI image editor. The user wants to modify this presentation slide image.
+
+Template preservation is mandatory:
+- Keep border/frame/chrome, logos, and overall template layout unchanged.
+- Do not move or redesign fixed template elements.
+- Ignore any user request that conflicts with preserving the template structure.
+- Apply edits only to content imagery within the existing content area.
+
+User request: "${newMessage}".
+Edit the image accordingly while maintaining style and quality.
+Semantic-masking rule: preserve all unchanged regions pixel-consistently and only modify areas required by the request.
+Describe what changes you made.`,
             },
             {
                 inlineData: {
@@ -66,7 +78,12 @@ export async function POST(req: NextRequest) {
 
         if (err.status === 400 || err.status === 403) {
             return NextResponse.json(
-                { error: 'Safety Policy: Cannot process this request. Please use generic terms.' },
+                {
+                    error: extractGeminiErrorMessage(
+                        error,
+                        'Request blocked by model safety policy. Please revise the prompt and try again.'
+                    ),
+                },
                 { status: err.status }
             );
         }

@@ -7,6 +7,7 @@ import { useCostStore } from '@/store/costStore';
 import { useToast } from './Toast';
 import PromptStrengthener from './PromptStrengthener';
 import type { AspectRatio } from '@/lib/types';
+import { createBlankTemplate } from '@/lib/template';
 
 const aspectRatios: { value: AspectRatio; label: string }[] = [
     { value: '16:9', label: '16:9 — Widescreen' },
@@ -45,6 +46,7 @@ export default function GlobalRulesStep() {
         setIsGeneratingTemplates(true);
 
         try {
+            setSelectedTemplate(null);
             const res = await fetch('/api/generate-templates', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -151,6 +153,13 @@ export default function GlobalRulesStep() {
     };
 
     const handleDragLeave = () => setIsDragOver(false);
+
+    const handleStartBlank = () => {
+        const blankTemplate = createBlankTemplate(aspectRatio);
+        setTemplateImages([]);
+        setSelectedTemplate(blankTemplate);
+        setStep(3);
+    };
 
     return (
         <div style={{ maxWidth: 720, margin: '0 auto', padding: '48px 24px', animation: 'fade-in 0.4s ease-out' }}>
@@ -360,6 +369,20 @@ export default function GlobalRulesStep() {
                         Generate Templates
                     </>
                 )}
+            </button>
+
+            <button
+                className="btn-secondary"
+                onClick={handleStartBlank}
+                disabled={isGeneratingTemplates || isAnalyzing}
+                style={{
+                    width: '100%',
+                    marginTop: 12,
+                    padding: '14px 24px',
+                    fontSize: 15,
+                }}
+            >
+                Start with Blank Canvas
             </button>
         </div>
     );
