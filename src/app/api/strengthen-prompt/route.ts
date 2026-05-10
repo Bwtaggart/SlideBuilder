@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getGeminiClient } from '@/lib/gemini';
+import { getGeminiClient, TEXT_MODEL_ID } from '@/lib/gemini';
 
 export async function POST(req: NextRequest) {
     try {
@@ -78,7 +78,7 @@ Universal rules:
 - Return ONLY the strengthened prompt text, no markdown, no quotes, no preface.`;
 
         const response = await ai.models.generateContent({
-            model: 'gemini-2.5-flash',
+            model: TEXT_MODEL_ID,
             contents: `${context ? `Context: ${context}\n` : ''}Mode: ${mode}\n\nRefinement requirements:\n${modeInstructionMap[mode]}\n\nOriginal prompt:\n${prompt}`,
             config: {
                 systemInstruction,

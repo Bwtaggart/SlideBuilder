@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getGeminiClient } from '@/lib/gemini';
+import { getGeminiClient, IMAGE_MODEL_ID } from '@/lib/gemini';
 import { extractGeminiErrorMessage } from '@/lib/geminiError';
 
 export async function POST(req: NextRequest) {
@@ -23,7 +23,7 @@ export async function POST(req: NextRequest) {
         const results = await Promise.allSettled(
             variations.map((prompt) =>
                 ai.models.generateContent({
-                    model: 'gemini-3-pro-image-preview',
+                    model: IMAGE_MODEL_ID,
                     contents: prompt,
                     config: {
                         responseModalities: ['Text', 'Image'],

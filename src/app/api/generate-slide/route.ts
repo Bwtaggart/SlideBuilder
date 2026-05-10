@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getGeminiClient } from '@/lib/gemini';
+import { getGeminiClient, IMAGE_MODEL_ID } from '@/lib/gemini';
 import { extractGeminiErrorMessage } from '@/lib/geminiError';
 import { BLANK_TEMPLATE_ID } from '@/lib/template';
 
@@ -142,7 +142,7 @@ Negative constraints: ${mergedNegativePrompt}.`;
 
             const ai = getGeminiClient();
             const response = await ai.models.generateContent({
-                model: 'gemini-3-pro-image-preview',
+                model: IMAGE_MODEL_ID,
                 contents: prompt,
                 config: {
                     // Prefer image-only response payload for render consistency.

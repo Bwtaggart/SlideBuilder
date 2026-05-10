@@ -30,6 +30,11 @@ Required:
 
 - `GEMINI_API_KEY`: used by all AI API routes.
 
+Optional (model overrides):
+
+- `IMAGE_MODEL_ID`: image generation model (default: `gemini-3-pro-image-preview`).
+- `TEXT_MODEL_ID`: text/intelligence model (default: `gemini-2.5-flash`).
+
 Optional (future usage/cost storage):
 
 - `NEXT_PUBLIC_SUPABASE_URL`

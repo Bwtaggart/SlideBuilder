@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { Inter, JetBrains_Mono } from "next/font/google";
+import { Inter, JetBrains_Mono, Fraunces } from "next/font/google";
 import "./globals.css";
 
 const inter = Inter({
@@ -14,6 +14,13 @@ const jetbrainsMono = JetBrains_Mono({
   display: "swap",
 });
 
+const fraunces = Fraunces({
+  variable: "--font-fraunces",
+  subsets: ["latin"],
+  display: "swap",
+  axes: ["opsz"],
+});
+
 export const metadata: Metadata = {
   title: "SlideBuilder — AI Presentation Generator",
   description:
@@ -26,14 +33,11 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" className="dark">
+    <html lang="en">
       <body
-        className={`${inter.variable} ${jetbrainsMono.variable} antialiased`}
-        style={{ fontFamily: "var(--font-inter), system-ui, sans-serif" }}
+        className={`${inter.variable} ${jetbrainsMono.variable} ${fraunces.variable} antialiased`}
       >
-        <div style={{ position: "relative", zIndex: 1, minHeight: "100vh" }}>
-          {children}
-        </div>
+        {children}
       </body>
     </html>
   );

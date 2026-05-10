@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getGeminiClient } from '@/lib/gemini';
+import { getGeminiClient, TEXT_MODEL_ID } from '@/lib/gemini';
 
 /**
  * POST /api/analyze-template
@@ -44,7 +44,7 @@ Rules:
 
         const ai = getGeminiClient();
         const response = await ai.models.generateContent({
-            model: 'gemini-2.5-flash',
+            model: TEXT_MODEL_ID,
             contents: [
                 {
                     role: 'user',

@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getGeminiClient } from '@/lib/gemini';
+import { getGeminiClient, TEXT_MODEL_ID } from '@/lib/gemini';
 
 export async function POST(req: NextRequest) {
     try {
@@ -14,7 +14,7 @@ export async function POST(req: NextRequest) {
 
         const ai = getGeminiClient();
         const response = await ai.models.generateContent({
-            model: 'gemini-2.5-flash',
+            model: TEXT_MODEL_ID,
             contents: `You are a presentation coach. Given this slide concept, generate exactly 3 concise speaker notes bullet points meant to be read aloud during a presentation. Keep each bullet to 1-2 sentences maximum. Be conversational but professional.
 
 Slide concept: ${slideConceptPrompt}
