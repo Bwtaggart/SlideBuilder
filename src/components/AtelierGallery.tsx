@@ -1,10 +1,11 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { ArrowLeft, ArrowRight, Upload, Sparkles, Check } from 'lucide-react';
 import { usePresentationStore } from '@/store/presentationStore';
 import { useCostStore } from '@/store/costStore';
 import { createBlankTemplate } from '@/lib/template';
+import { getAllTemplates, putTemplate } from '@/lib/idb';
 import type { TemplateImage } from '@/lib/types';
 
 interface AtelierGalleryProps {
@@ -29,6 +30,20 @@ export default function AtelierGallery({ onBack, onPick }: AtelierGalleryProps) 
 
   const [filter, setFilter] = useState('all');
   const [describePrompt, setDescribePrompt] = useState(globalPrompt);
+
+  useEffect(() => {
+    if (templateImages.length > 0) return;
+    getAllTemplates().then((persisted) => {
+      if (persisted.length > 0) {
+        const images: TemplateImage[] = persisted.map((t) => ({
+          id: t.id,
+          base64: t.base64,
+          url: t.url,
+        }));
+        setTemplateImages(images);
+      }
+    });
+  }, []);
 
   const blankTemplate = createBlankTemplate(aspectRatio);
 
@@ -82,6 +97,11 @@ export default function AtelierGallery({ onBack, onPick }: AtelierGalleryProps) 
       );
       setTemplateImages(images);
       addCost('nano_banana_image', images.length);
+      await Promise.all(
+        images.map((img) =>
+          putTemplate({ id: img.id, base64: img.base64, url: img.url, createdAt: Date.now() })
+        ),
+      );
       if (images.length > 0) {
         setSelectedTemplate(images[0]);
       }

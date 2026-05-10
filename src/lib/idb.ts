@@ -5,9 +5,10 @@
 import type { ServiceType } from './types';
 
 const DB_NAME = 'slidebuilder';
-const DB_VERSION = 2;
+const DB_VERSION = 3;
 const PROJECT_STORE = 'projects';
 const COST_EVENTS_STORE = 'cost_events';
+const TEMPLATE_STORE = 'templates';
 
 export interface CostEventRecord {
     id: string;
@@ -30,6 +31,9 @@ function openDB(): Promise<IDBDatabase> {
             if (!db.objectStoreNames.contains(COST_EVENTS_STORE)) {
                 const store = db.createObjectStore(COST_EVENTS_STORE, { keyPath: 'id' });
                 store.createIndex('timestamp', 'timestamp', { unique: false });
+            }
+            if (!db.objectStoreNames.contains(TEMPLATE_STORE)) {
+                db.createObjectStore(TEMPLATE_STORE, { keyPath: 'id' });
             }
         };
     });
@@ -153,5 +157,43 @@ export async function deleteCostEventsBefore(cutoffTimestamp: number): Promise<v
         });
     } catch (e) {
         console.error('IndexedDB deleteCostEventsBefore error:', e);
+    }
+}
+
+export interface PersistedTemplate {
+    id: string;
+    base64: string;
+    url?: string;
+    createdAt: number;
+}
+
+export async function getAllTemplates(): Promise<PersistedTemplate[]> {
+    try {
+        const db = await openDB();
+        return new Promise((resolve, reject) => {
+            const tx = db.transaction(TEMPLATE_STORE, 'readonly');
+            const store = tx.objectStore(TEMPLATE_STORE);
+            const request = store.getAll();
+            request.onsuccess = () => resolve(request.result as PersistedTemplate[]);
+            request.onerror = () => reject(request.error);
+        });
+    } catch (e) {
+        console.error('IndexedDB getAllTemplates error:', e);
+        return [];
+    }
+}
+
+export async function putTemplate(template: PersistedTemplate): Promise<void> {
+    try {
+        const db = await openDB();
+        return new Promise((resolve, reject) => {
+            const tx = db.transaction(TEMPLATE_STORE, 'readwrite');
+            const store = tx.objectStore(TEMPLATE_STORE);
+            const request = store.put(template);
+            request.onsuccess = () => resolve();
+            request.onerror = () => reject(request.error);
+        });
+    } catch (e) {
+        console.error('IndexedDB putTemplate error:', e);
     }
 }
