@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useCallback } from 'react';
 import {
   Plus,
   Sparkles,
@@ -40,12 +40,16 @@ export default function AtelierWorkspace({
     updateSlide,
     addSlide,
     deleteSlide,
+    insertSlidesAfter,
+    isGeneratingSlide,
+    setIsGeneratingSlide,
     chatMessages,
     globalPrompt,
     negativePrompt,
     aspectRatio,
+    selectedTemplate,
   } = usePresentationStore();
-  const { sessionCost } = useCostStore();
+  const { sessionCost, addCost } = useCostStore();
   const [drawer, setDrawer] = useState<null | 'discuss' | 'style'>(null);
   const [variationCount, setVariationCount] = useState(1);
   const [deleteConfirmIdx, setDeleteConfirmIdx] = useState<number | null>(null);
@@ -56,6 +60,88 @@ export default function AtelierWorkspace({
     if (!slide) return;
     updateSlide(activeSlideIndex, { [field]: value });
   };
+
+  const handleGenerate = useCallback(async () => {
+    if (!slide || isGeneratingSlide) return;
+    if (!slide.local_prompt) return;
+    setIsGeneratingSlide(true);
+    try {
+      const templateId = selectedTemplate?.id || 'blank-template';
+      const templateBase64 = selectedTemplate?.base64 || '';
+      const res = await fetch('/api/generate-slide', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          templateId,
+          templateBase64,
+          slidePrompt: slide.local_prompt,
+          title: slide.title,
+          subtitle: slide.subtitle,
+          bullets: slide.bullets,
+          aspectRatio,
+          negativePrompt,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Generation failed');
+      if (data.imageBase64) {
+        updateSlide(activeSlideIndex, {
+          image_url: `data:image/png;base64,${data.imageBase64}`,
+        });
+        addCost('nano_banana_image', 1);
+      }
+    } catch (err) {
+      console.error('Generate slide error:', err);
+    } finally {
+      setIsGeneratingSlide(false);
+    }
+  }, [slide, isGeneratingSlide, selectedTemplate, aspectRatio, negativePrompt, activeSlideIndex, setIsGeneratingSlide, updateSlide, addCost]);
+
+  const handleVariations = useCallback(async () => {
+    if (!slide || isGeneratingSlide) return;
+    if (!slide.local_prompt) return;
+    setIsGeneratingSlide(true);
+    try {
+      const templateId = selectedTemplate?.id || 'blank-template';
+      const templateBase64 = selectedTemplate?.base64 || '';
+      const newSlides = [];
+      for (let i = 0; i < variationCount; i++) {
+        const res = await fetch('/api/generate-slide', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            templateId,
+            templateBase64,
+            slidePrompt: slide.local_prompt,
+            title: slide.title,
+            subtitle: slide.subtitle,
+            bullets: slide.bullets,
+            aspectRatio,
+            negativePrompt,
+            variationIndex: i + 1,
+            totalVariations: variationCount,
+          }),
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'Generation failed');
+        if (data.imageBase64) {
+          newSlides.push({
+            ...slide,
+            slide_id: `${Date.now()}-${Math.random().toString(36).substring(2, 9)}`,
+            image_url: `data:image/png;base64,${data.imageBase64}`,
+          });
+          addCost('nano_banana_image', 1);
+        }
+      }
+      if (newSlides.length > 0) {
+        insertSlidesAfter(activeSlideIndex, newSlides);
+      }
+    } catch (err) {
+      console.error('Variations error:', err);
+    } finally {
+      setIsGeneratingSlide(false);
+    }
+  }, [slide, isGeneratingSlide, selectedTemplate, aspectRatio, negativePrompt, variationCount, activeSlideIndex, setIsGeneratingSlide, insertSlidesAfter, addCost]);
 
   return (
     <div
@@ -239,8 +325,13 @@ export default function AtelierWorkspace({
 
               {/* Stage toolbar */}
               <div style={{ display: 'flex', justifyContent: 'center', gap: 6, marginBottom: 18 }}>
-                <button className="atl-btn" title="Re-generate this slide's image from scratch">
-                  <Sparkles size={12} /> Regenerate
+                <button
+                  className="atl-btn"
+                  title="Re-generate this slide's image from scratch"
+                  onClick={handleGenerate}
+                  disabled={isGeneratingSlide}
+                >
+                  <Sparkles size={12} /> {isGeneratingSlide ? 'Generating…' : 'Regenerate'}
                 </button>
                 <button className="atl-btn" title="Paint over a region of the image to fix or change part of it">
                   <ImageIcon size={12} /> Inpaint region
@@ -250,6 +341,8 @@ export default function AtelierWorkspace({
                     className="atl-btn"
                     title="Generate alternative versions of this slide"
                     style={{ borderTopRightRadius: 0, borderBottomRightRadius: 0, borderRight: 'none' }}
+                    onClick={handleVariations}
+                    disabled={isGeneratingSlide}
                   >
                     <Copy size={12} /> Variations
                   </button>
