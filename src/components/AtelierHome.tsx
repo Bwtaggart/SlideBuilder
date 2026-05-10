@@ -1,7 +1,8 @@
 'use client';
 
-import { useRef } from 'react';
+import { useRef, useState } from 'react';
 import { DollarSign, Plus, Upload } from 'lucide-react';
+import { putProject } from '@/lib/idb';
 import { useProjectStore, type SavedProject } from '@/store/projectStore';
 import { useCostStore } from '@/store/costStore';
 import { formatCost } from '@/lib/calculateCost';
@@ -14,10 +15,12 @@ interface AtelierHomeProps {
 }
 
 export default function AtelierHome({ onOpenProject, onNew, onImportSlides }: AtelierHomeProps) {
-  const { projects, isLoaded } = useProjectStore();
+  const { projects, isLoaded, loadProjects } = useProjectStore();
   const { sessionCost, breakdown } = useCostStore();
   const empty = isLoaded && projects.length === 0;
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const restoreInputRef = useRef<HTMLInputElement>(null);
+  const [restoreStatus, setRestoreStatus] = useState<string | null>(null);
 
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -30,6 +33,50 @@ export default function AtelierHome({ onOpenProject, onNew, onImportSlides }: At
       onImportSlides(slides, name);
     } catch (err) {
       console.error('Import error:', err);
+    }
+  };
+
+  const isAspectRatio = (v: unknown): v is SavedProject['aspectRatio'] =>
+    v === '16:9' || v === '4:3' || v === '9:16';
+
+  const handleRestoreChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    e.target.value = '';
+    setRestoreStatus('Restoring…');
+    try {
+      const text = await file.text();
+      const parsed = JSON.parse(text) as { projects?: unknown[] } | unknown[];
+      const rawProjects = Array.isArray(parsed)
+        ? parsed
+        : Array.isArray((parsed as { projects?: unknown[] }).projects)
+          ? (parsed as { projects?: unknown[] }).projects!
+          : null;
+      if (!rawProjects) throw new Error('Backup file must contain a projects array.');
+
+      const validProjects = rawProjects
+        .map((value: unknown) => {
+          if (!value || typeof value !== 'object') return null;
+          const p = value as Partial<SavedProject>;
+          if (!p.id || !p.name || typeof p.id !== 'string' || typeof p.name !== 'string'
+            || typeof p.createdAt !== 'number' || typeof p.updatedAt !== 'number'
+            || typeof p.globalPrompt !== 'string' || typeof p.negativePrompt !== 'string'
+            || !isAspectRatio(p.aspectRatio) || !Array.isArray(p.slides))
+            return null;
+          return { ...p, selectedTemplate: p.selectedTemplate || null, templateImages: p.templateImages || [], thumbnailUrl: p.thumbnailUrl || '' } as SavedProject;
+        })
+        .filter((p): p is SavedProject => !!p);
+
+      if (validProjects.length === 0) throw new Error('No valid projects found in backup file.');
+      await Promise.all(validProjects.map((project) => putProject(project)));
+      await loadProjects();
+      setRestoreStatus(`Restored ${validProjects.length} project${validProjects.length === 1 ? '' : 's'}`);
+      setTimeout(() => setRestoreStatus(null), 3000);
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : 'Restore failed';
+      setRestoreStatus(msg);
+      setTimeout(() => setRestoreStatus(null), 4000);
+      console.error('Restore error:', err);
     }
   };
 
@@ -50,6 +97,13 @@ export default function AtelierHome({ onOpenProject, onNew, onImportSlides }: At
         accept=".pptx"
         style={{ display: 'none' }}
         onChange={handleFileChange}
+      />
+      <input
+        ref={restoreInputRef}
+        type="file"
+        accept=".json"
+        style={{ display: 'none' }}
+        onChange={handleRestoreChange}
       />
       {/* Home topbar */}
       <header
@@ -75,8 +129,13 @@ export default function AtelierHome({ onOpenProject, onNew, onImportSlides }: At
           </span>
         </div>
         <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
-          <button className="atl-btn atl-btn-ghost" style={{ fontSize: 12 }} title="Restore a deck from a backup file">
-            <Upload size={12} /> Restore backup
+          <button
+            className="atl-btn atl-btn-ghost"
+            style={{ fontSize: 12 }}
+            title="Restore a deck from a backup file"
+            onClick={() => restoreInputRef.current?.click()}
+          >
+            <Upload size={12} /> {restoreStatus || 'Restore backup'}
           </button>
           <span className="atl-cost" title="Total API cost this session">
             <DollarSign size={11} /> {formatCost(sessionCost)}
