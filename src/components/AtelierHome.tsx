@@ -1,19 +1,37 @@
 'use client';
 
+import { useRef } from 'react';
 import { DollarSign, Plus, Upload } from 'lucide-react';
 import { useProjectStore, type SavedProject } from '@/store/projectStore';
 import { useCostStore } from '@/store/costStore';
 import { formatCost } from '@/lib/calculateCost';
+import type { Slide } from '@/lib/types';
 
 interface AtelierHomeProps {
   onOpenProject: (project: SavedProject) => void;
   onNew: () => void;
+  onImportSlides: (slides: Slide[], filename: string) => void;
 }
 
-export default function AtelierHome({ onOpenProject, onNew }: AtelierHomeProps) {
+export default function AtelierHome({ onOpenProject, onNew, onImportSlides }: AtelierHomeProps) {
   const { projects, isLoaded } = useProjectStore();
   const { sessionCost, breakdown } = useCostStore();
   const empty = isLoaded && projects.length === 0;
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    e.target.value = '';
+    const { parsePptxFile } = await import('@/lib/importPptx');
+    try {
+      const slides = await parsePptxFile(file);
+      const name = file.name.replace(/\.pptx$/i, '');
+      onImportSlides(slides, name);
+    } catch (err) {
+      console.error('Import error:', err);
+    }
+  };
 
   return (
     <div
@@ -26,6 +44,13 @@ export default function AtelierHome({ onOpenProject, onNew }: AtelierHomeProps) 
         flexDirection: 'column',
       }}
     >
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept=".pptx"
+        style={{ display: 'none' }}
+        onChange={handleFileChange}
+      />
       {/* Home topbar */}
       <header
         style={{
@@ -56,6 +81,9 @@ export default function AtelierHome({ onOpenProject, onNew }: AtelierHomeProps) 
           <span className="atl-cost" title="Total API cost this session">
             <DollarSign size={11} /> {formatCost(sessionCost)}
           </span>
+          <button className="atl-btn" onClick={() => fileInputRef.current?.click()} title="Import an existing PowerPoint file">
+            <Upload size={12} /> Import .pptx
+          </button>
           <button className="atl-btn atl-btn-pri" onClick={onNew} title="Create a new presentation from scratch">
             <Plus size={14} /> New deck
           </button>
@@ -114,7 +142,12 @@ export default function AtelierHome({ onOpenProject, onNew }: AtelierHomeProps) 
                 >
                   <Plus size={14} /> Start a new deck
                 </button>
-                <button className="atl-btn" style={{ fontSize: 14, padding: '12px 18px' }} title="Import an existing PowerPoint file">
+                <button
+                  className="atl-btn"
+                  style={{ fontSize: 14, padding: '12px 18px' }}
+                  title="Import an existing PowerPoint file"
+                  onClick={() => fileInputRef.current?.click()}
+                >
                   <Upload size={14} /> Import .pptx
                 </button>
               </div>

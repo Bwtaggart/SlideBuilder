@@ -11,6 +11,7 @@ import { usePresentationStore } from '@/store/presentationStore';
 import { useProjectStore, type SavedProject } from '@/store/projectStore';
 import { useCostStore } from '@/store/costStore';
 import { buildPptxBlob } from '@/lib/exportPptx';
+import type { Slide } from '@/lib/types';
 
 type AtelierView = 'home' | 'gallery' | 'generating' | 'workspace' | 'export';
 
@@ -111,6 +112,20 @@ export default function Home() {
     setView('gallery');
   };
 
+  const handleImportSlides = (importedSlides: Slide[], filename: string) => {
+    resetPresentation();
+    setActiveProjectId(null);
+    setProjectName(filename || 'Imported Deck');
+    if (importedSlides.length > 0) {
+      usePresentationStore.setState({
+        slides: importedSlides.map((s, i) => ({ ...s, slide_index: i })),
+        activeSlideIndex: 0,
+      });
+    }
+    setStep(3);
+    setView('workspace');
+  };
+
   const handleExport = async (format: 'pptx' | 'pdf', mode: 'hybrid' | 'image') => {
     if (format === 'pptx') {
       const blob = await buildPptxBlob(slides, {
@@ -130,7 +145,7 @@ export default function Home() {
   return (
     <ToastProvider>
       {view === 'home' && (
-        <AtelierHome onOpenProject={handleOpenProject} onNew={handleNew} />
+        <AtelierHome onOpenProject={handleOpenProject} onNew={handleNew} onImportSlides={handleImportSlides} />
       )}
       {view === 'gallery' && (
         <AtelierGallery
