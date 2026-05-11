@@ -39,6 +39,20 @@ export default function TemplateEditor({ templateBase64, onSave, onCancel }: Tem
   const fileInputRef = useRef<HTMLInputElement>(null);
   const templateImgRef = useRef<HTMLImageElement>(null);
   const [canvasSize, setCanvasSize] = useState({ width: 0, height: 0 });
+  const [templateAspect, setTemplateAspect] = useState<string>('16/10');
+
+  useEffect(() => {
+    // Detect the template image's natural aspect ratio so the editor
+    // container matches exactly — no cover-cropping, no position drift.
+    const img = new Image();
+    img.onload = () => {
+      setTemplateAspect(`${img.naturalWidth}/${img.naturalHeight}`);
+    };
+    const src = templateBase64.startsWith('data:')
+      ? templateBase64
+      : `data:image/png;base64,${templateBase64}`;
+    img.src = src;
+  }, [templateBase64]);
 
   useEffect(() => {
     if (!canvasAreaRef.current) return;
@@ -248,7 +262,7 @@ export default function TemplateEditor({ templateBase64, onSave, onCancel }: Tem
           position: 'relative',
           width: '80vw',
           maxWidth: 960,
-          aspectRatio: '16/10',
+          aspectRatio: templateAspect,
           borderRadius: 8,
           overflow: 'hidden',
           boxShadow: '0 20px 60px rgba(0,0,0,0.3)',
@@ -260,7 +274,7 @@ export default function TemplateEditor({ templateBase64, onSave, onCancel }: Tem
           ref={templateImgRef}
           src={templateSrc}
           alt="Template"
-          style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
+          style={{ width: '100%', height: '100%', objectFit: 'fill', display: 'block' }}
           draggable={false}
         />
 
