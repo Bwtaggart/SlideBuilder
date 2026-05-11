@@ -61,6 +61,7 @@ export default function AtelierWorkspace({
   const [editMode, setEditMode] = useState(false);
   const [editPrompt, setEditPrompt] = useState('');
   const [isEditing, setIsEditing] = useState(false);
+  const [zoomed, setZoomed] = useState(false);
   const [selBox, setSelBox] = useState<{ x: number; y: number; w: number; h: number } | null>(null);
   const [dragging, setDragging] = useState(false);
   const [dragStart, setDragStart] = useState<{ x: number; y: number } | null>(null);
@@ -446,12 +447,14 @@ export default function AtelierWorkspace({
                     <img
                       src={slide.image_url}
                       alt={slide.title}
+                      onClick={() => { if (!editMode) setZoomed(true); }}
                       style={{
                         width: '100%',
                         height: '100%',
                         objectFit: 'cover',
                         filter: editMode ? 'brightness(0.6)' : undefined,
                         transition: 'filter 0.2s',
+                        cursor: editMode ? undefined : 'zoom-in',
                       }}
                     />
                   ) : (
@@ -942,6 +945,35 @@ export default function AtelierWorkspace({
               </button>
             </div>
           )}
+        </div>
+      )}
+      {/* Zoom overlay */}
+      {zoomed && slide?.image_url && (
+        <div
+          onClick={() => setZoomed(false)}
+          style={{
+            position: 'fixed',
+            inset: 0,
+            zIndex: 100,
+            background: 'rgba(0,0,0,0.85)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            cursor: 'zoom-out',
+            padding: 24,
+          }}
+        >
+          <img
+            src={slide.image_url}
+            alt={slide.title}
+            style={{
+              maxWidth: '95vw',
+              maxHeight: '95vh',
+              objectFit: 'contain',
+              borderRadius: 6,
+              boxShadow: '0 40px 80px rgba(0,0,0,0.5)',
+            }}
+          />
         </div>
       )}
     </div>
