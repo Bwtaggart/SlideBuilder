@@ -1,8 +1,10 @@
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
-import { X, Layers, Download } from 'lucide-react';
+import { X, Layers, Download, DollarSign } from 'lucide-react';
 import { usePresentationStore } from '@/store/presentationStore';
+import { useCostStore } from '@/store/costStore';
+import { formatCost } from '@/lib/calculateCost';
 
 interface AtelierExportProps {
   projectName: string;
@@ -14,6 +16,7 @@ export default function AtelierExport({ projectName, onClose, onExport }: Atelie
   const [fmt, setFmt] = useState<'pptx' | 'pdf'>('pptx');
   const [filenameOverride, setFilenameOverride] = useState('');
   const { slides, aspectRatio, pptxExportMode, setPptxExportMode } = usePresentationStore();
+  const { sessionCost } = useCostStore();
   const mode = pptxExportMode === 'hybrid_editable' ? 'hybrid' as const : 'image' as const;
   const setMode = (m: 'hybrid' | 'image') => setPptxExportMode(m === 'hybrid' ? 'hybrid_editable' : 'image');
   const defaultFilename = useMemo(() => {
@@ -262,8 +265,8 @@ export default function AtelierExport({ projectName, onClose, onExport }: Atelie
               lineHeight: 1.55,
             }}
           >
-            <strong>Ready when you are.</strong> {slides.length} slides · {aspectRatio} ·
-            estimated export.
+            <strong>Ready when you are.</strong> {slides.length} slide{slides.length !== 1 ? 's' : ''} · {aspectRatio} ·
+            session cost: {formatCost(sessionCost)}
           </div>
         </div>
 

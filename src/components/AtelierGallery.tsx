@@ -1,12 +1,13 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
-import { ArrowLeft, ArrowRight, Upload, Sparkles, Check, Download } from 'lucide-react';
+import { ArrowLeft, ArrowRight, Upload, Sparkles, Check, Download, Layers } from 'lucide-react';
 import { usePresentationStore } from '@/store/presentationStore';
 import { useCostStore } from '@/store/costStore';
 import { createBlankTemplate } from '@/lib/template';
 import { getAllTemplates, putTemplate } from '@/lib/idb';
 import type { TemplateImage } from '@/lib/types';
+import TemplateEditor from './TemplateEditor';
 
 interface AtelierGalleryProps {
   onBack: () => void;
@@ -32,6 +33,7 @@ export default function AtelierGallery({ onBack, onPick }: AtelierGalleryProps) 
   const [filter, setFilter] = useState('all');
   const [describePrompt, setDescribePrompt] = useState(globalPrompt);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
+  const [isCustomizing, setIsCustomizing] = useState(false);
   const refImageInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -155,6 +157,15 @@ export default function AtelierGallery({ onBack, onPick }: AtelierGalleryProps) 
     onPick();
   };
 
+  const handleCustomizeSave = async (compositeBase64: string) => {
+    const id = `custom-${Date.now()}`;
+    const newTemplate: TemplateImage = { id, base64: compositeBase64 };
+    setTemplateImages([...templateImages, newTemplate]);
+    setSelectedTemplate(newTemplate);
+    await putTemplate({ id, base64: compositeBase64, createdAt: Date.now() });
+    setIsCustomizing(false);
+  };
+
   const tags = [
     { id: 'all', label: 'All templates' },
     { id: 'generated', label: 'Generated' },
@@ -206,6 +217,14 @@ export default function AtelierGallery({ onBack, onPick }: AtelierGalleryProps) 
             disabled={isAnalyzing}
           >
             <Upload size={13} /> {isAnalyzing ? 'Analyzing…' : 'Upload reference'}
+          </button>
+          <button
+            className="atl-btn"
+            title="Add graphics on top of the selected template"
+            onClick={() => setIsCustomizing(true)}
+            disabled={!selectedTemplate?.base64}
+          >
+            <Layers size={13} /> Customize
           </button>
           <button className="atl-btn atl-btn-pri" onClick={handlePickAndContinue} title="Use the selected template and start editing slides">
             Use template <ArrowRight size={13} />
@@ -425,6 +444,14 @@ export default function AtelierGallery({ onBack, onPick }: AtelierGalleryProps) 
           )}
         </div>
       </div>
+
+      {isCustomizing && selectedTemplate?.base64 && (
+        <TemplateEditor
+          templateBase64={selectedTemplate.base64}
+          onSave={handleCustomizeSave}
+          onCancel={() => setIsCustomizing(false)}
+        />
+      )}
     </div>
   );
 }
