@@ -81,6 +81,7 @@ export default function AtelierWorkspace({
     try {
       const templateId = selectedTemplate?.id || 'blank-template';
       const templateBase64 = selectedTemplate?.originalBase64 || selectedTemplate?.base64 || '';
+      const overlays = selectedTemplate?.overlays || [];
       const res = await fetch('/api/generate-slide', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -93,13 +94,14 @@ export default function AtelierWorkspace({
           bullets: slide.bullets,
           aspectRatio,
           negativePrompt,
+          reservedZones: overlays.map((o) => ({ xPct: o.xPct, yPct: o.yPct, widthPct: o.widthPct, heightPct: o.heightPct })),
         }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Generation failed');
       if (data.imageBase64) {
-        const finalBase64 = selectedTemplate?.overlays?.length
-          ? await compositeOverlays(data.imageBase64, selectedTemplate.overlays)
+        const finalBase64 = overlays.length
+          ? await compositeOverlays(data.imageBase64, overlays)
           : data.imageBase64;
         updateSlide(activeSlideIndex, {
           image_url: `data:image/png;base64,${finalBase64}`,
@@ -188,6 +190,7 @@ export default function AtelierWorkspace({
     try {
       const templateId = selectedTemplate?.id || 'blank-template';
       const templateBase64 = selectedTemplate?.originalBase64 || selectedTemplate?.base64 || '';
+      const overlays = selectedTemplate?.overlays || [];
       for (let i = 0; i < slides.length; i++) {
         const s = slides[i];
         if (!s.local_prompt) continue;
@@ -203,13 +206,14 @@ export default function AtelierWorkspace({
             bullets: s.bullets,
             aspectRatio,
             negativePrompt,
+            reservedZones: overlays.map((o) => ({ xPct: o.xPct, yPct: o.yPct, widthPct: o.widthPct, heightPct: o.heightPct })),
           }),
         });
         const data = await res.json();
         if (!res.ok) throw new Error(data.error || 'Generation failed');
         if (data.imageBase64) {
-          const finalBase64 = selectedTemplate?.overlays?.length
-            ? await compositeOverlays(data.imageBase64, selectedTemplate.overlays)
+          const finalBase64 = overlays.length
+            ? await compositeOverlays(data.imageBase64, overlays)
             : data.imageBase64;
           updateSlide(i, { image_url: `data:image/png;base64,${finalBase64}` });
           addCost('nano_banana_image', 1);
@@ -229,6 +233,7 @@ export default function AtelierWorkspace({
     try {
       const templateId = selectedTemplate?.id || 'blank-template';
       const templateBase64 = selectedTemplate?.originalBase64 || selectedTemplate?.base64 || '';
+      const overlays = selectedTemplate?.overlays || [];
       const results = await Promise.allSettled(
         Array.from({ length: variationCount }, (_, i) =>
           fetch('/api/generate-slide', {
@@ -245,6 +250,7 @@ export default function AtelierWorkspace({
               negativePrompt,
               variationIndex: i + 1,
               totalVariations: variationCount,
+              reservedZones: overlays.map((o) => ({ xPct: o.xPct, yPct: o.yPct, widthPct: o.widthPct, heightPct: o.heightPct })),
             }),
           }).then(async (res) => {
             const data = await res.json();
@@ -256,8 +262,8 @@ export default function AtelierWorkspace({
       const newSlides = [];
       for (const result of results) {
         if (result.status === 'fulfilled' && result.value.imageBase64) {
-          const finalBase64 = selectedTemplate?.overlays?.length
-            ? await compositeOverlays(result.value.imageBase64, selectedTemplate.overlays)
+          const finalBase64 = overlays.length
+            ? await compositeOverlays(result.value.imageBase64, overlays)
             : result.value.imageBase64;
           newSlides.push({
             ...slide,

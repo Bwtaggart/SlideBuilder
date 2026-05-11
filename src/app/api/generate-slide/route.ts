@@ -16,6 +16,7 @@ export async function POST(req: NextRequest) {
             negativePrompt,
             variationIndex,
             totalVariations,
+            reservedZones,
         } = await req.json();
         const isBlankTemplate = templateId === BLANK_TEMPLATE_ID;
 
@@ -88,6 +89,22 @@ Variation directive:
 - Do not change the factual content or the required text.`
                 : '';
 
+            const parsedZones = Array.isArray(reservedZones) ? reservedZones : [];
+            const reservedZonesInstruction = parsedZones.length > 0
+                ? `
+Reserved zones (CRITICAL — highest priority):
+These areas will have graphic overlays composited on top after generation.
+Do NOT place any text, important imagery, or key visual elements in these regions.
+Keep these zones clear — use plain background, subtle texture, or empty space only.
+${parsedZones.map((z: { xPct: number; yPct: number; widthPct: number; heightPct: number }, i: number) => {
+    const left = Math.round(z.xPct * 100);
+    const top = Math.round(z.yPct * 100);
+    const right = Math.round((z.xPct + z.widthPct) * 100);
+    const bottom = Math.round((z.yPct + z.heightPct) * 100);
+    return `- Zone ${i + 1}: from (${left}%, ${top}%) to (${right}%, ${bottom}%) of the image — keep this area clear.`;
+}).join('\n')}`
+                : '';
+
             const templateInstruction = isBlankTemplate
                 ? `Create a professional presentation slide from a blank canvas.
 
@@ -107,6 +124,7 @@ Treat the reference template as LOCKED and NON-NEGOTIABLE:
 
 ${typographyRules}
 ${variationInstruction}
+${reservedZonesInstruction}
 
 Narrative interpretation requirements:
 - Treat the content request as narrative instructions, not loose keyword tags.
