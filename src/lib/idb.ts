@@ -206,3 +206,19 @@ export async function putTemplate(template: PersistedTemplate): Promise<void> {
         console.error('IndexedDB putTemplate error:', e);
     }
 }
+
+export async function deleteTemplate(id: string): Promise<void> {
+    try {
+        const db = await openDB();
+        if (!db.objectStoreNames.contains(TEMPLATE_STORE)) return;
+        return new Promise((resolve, reject) => {
+            const tx = db.transaction(TEMPLATE_STORE, 'readwrite');
+            const store = tx.objectStore(TEMPLATE_STORE);
+            const request = store.delete(id);
+            request.onsuccess = () => resolve();
+            request.onerror = () => reject(request.error);
+        });
+    } catch (e) {
+        console.error('IndexedDB deleteTemplate error:', e);
+    }
+}

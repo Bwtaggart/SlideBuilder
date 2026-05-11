@@ -1,11 +1,11 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
-import { ArrowLeft, ArrowRight, Upload, Sparkles, Check, Download, Layers } from 'lucide-react';
+import { ArrowLeft, ArrowRight, Upload, Sparkles, Check, Download, Layers, Trash2 } from 'lucide-react';
 import { usePresentationStore } from '@/store/presentationStore';
 import { useCostStore } from '@/store/costStore';
 import { createBlankTemplate } from '@/lib/template';
-import { getAllTemplates, putTemplate } from '@/lib/idb';
+import { getAllTemplates, putTemplate, deleteTemplate } from '@/lib/idb';
 import type { TemplateImage } from '@/lib/types';
 import TemplateEditor from './TemplateEditor';
 
@@ -154,6 +154,14 @@ export default function AtelierGallery({ onBack, onPick }: AtelierGalleryProps) 
       await putTemplate({ id: tpl.id, base64: tpl.base64, url: tpl.url, createdAt: Date.now() });
     }
     onPick();
+  };
+
+  const handleDeleteTemplate = async (id: string) => {
+    setTemplateImages(templateImages.filter((t) => t.id !== id));
+    if (selectedTemplate?.id === id) {
+      setSelectedTemplate(blankTemplate);
+    }
+    await deleteTemplate(id);
   };
 
   const handleCustomizeSave = (compositeBase64: string) => {
@@ -415,6 +423,19 @@ export default function AtelierGallery({ onBack, onPick }: AtelierGalleryProps) 
                             }}
                           >
                             <Download size={10} />
+                          </button>
+                        )}
+                        {!t.isBlank && (
+                          <button
+                            className="atl-btn"
+                            style={{ padding: '3px 6px', fontSize: 10, color: '#b91c1c' }}
+                            title="Delete template"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleDeleteTemplate(t.id);
+                            }}
+                          >
+                            <Trash2 size={10} />
                           </button>
                         )}
                         {isSelected && (
