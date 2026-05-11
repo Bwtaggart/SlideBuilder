@@ -102,11 +102,6 @@ export default function AtelierGallery({ onBack, onPick }: AtelierGalleryProps) 
       );
       setTemplateImages(images);
       addCost('nano_banana_image', images.length);
-      await Promise.all(
-        images.map((img) =>
-          putTemplate({ id: img.id, base64: img.base64, url: img.url, createdAt: Date.now() })
-        ),
-      );
       if (images.length > 0) {
         setSelectedTemplate(images[0]);
       }
@@ -150,19 +145,22 @@ export default function AtelierGallery({ onBack, onPick }: AtelierGalleryProps) 
     }
   };
 
-  const handlePickAndContinue = () => {
+  const handlePickAndContinue = async () => {
+    const tpl = selectedTemplate || blankTemplate;
     if (!selectedTemplate) {
       setSelectedTemplate(blankTemplate);
+    }
+    if (tpl.base64) {
+      await putTemplate({ id: tpl.id, base64: tpl.base64, url: tpl.url, createdAt: Date.now() });
     }
     onPick();
   };
 
-  const handleCustomizeSave = async (compositeBase64: string) => {
+  const handleCustomizeSave = (compositeBase64: string) => {
     const id = `custom-${Date.now()}`;
     const newTemplate: TemplateImage = { id, base64: compositeBase64 };
     setTemplateImages([...templateImages, newTemplate]);
     setSelectedTemplate(newTemplate);
-    await putTemplate({ id, base64: compositeBase64, createdAt: Date.now() });
     setIsCustomizing(false);
   };
 
