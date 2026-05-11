@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
-import { ArrowLeft, ArrowRight, Upload, Sparkles, Check } from 'lucide-react';
+import { ArrowLeft, ArrowRight, Upload, Sparkles, Check, Download } from 'lucide-react';
 import { usePresentationStore } from '@/store/presentationStore';
 import { useCostStore } from '@/store/costStore';
 import { createBlankTemplate } from '@/lib/template';
@@ -383,22 +383,40 @@ export default function AtelierGallery({ onBack, onPick }: AtelierGalleryProps) 
                           {t.tag}
                         </div>
                       </div>
-                      {isSelected && (
-                        <div
-                          style={{
-                            width: 20,
-                            height: 20,
-                            borderRadius: '50%',
-                            background: 'var(--color-accent)',
-                            color: '#faf8f4',
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                          }}
-                        >
-                          <Check size={12} />
-                        </div>
-                      )}
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                        {!t.isBlank && t.base64 && (
+                          <button
+                            className="atl-btn"
+                            style={{ padding: '3px 6px', fontSize: 10 }}
+                            title="Download template as PNG"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              const a = document.createElement('a');
+                              a.href = `data:image/png;base64,${t.base64}`;
+                              a.download = `${t.name.replace(/\s+/g, '-').toLowerCase()}.png`;
+                              a.click();
+                            }}
+                          >
+                            <Download size={10} />
+                          </button>
+                        )}
+                        {isSelected && (
+                          <div
+                            style={{
+                              width: 20,
+                              height: 20,
+                              borderRadius: '50%',
+                              background: 'var(--color-accent)',
+                              color: '#faf8f4',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                            }}
+                          >
+                            <Check size={12} />
+                          </div>
+                        )}
+                      </div>
                     </div>
                   </div>
                 );
