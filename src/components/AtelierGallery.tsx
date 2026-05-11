@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { ArrowLeft, ArrowRight, Upload, Sparkles, Check } from 'lucide-react';
 import { usePresentationStore } from '@/store/presentationStore';
 import { useCostStore } from '@/store/costStore';
@@ -24,12 +24,15 @@ export default function AtelierGallery({ onBack, onPick }: AtelierGalleryProps) 
     globalPrompt,
     setGlobalPrompt,
     negativePrompt,
+    setNegativePrompt,
     aspectRatio,
   } = usePresentationStore();
   const { addCost } = useCostStore();
 
   const [filter, setFilter] = useState('all');
   const [describePrompt, setDescribePrompt] = useState(globalPrompt);
+  const [isAnalyzing, setIsAnalyzing] = useState(false);
+  const refImageInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     if (templateImages.length > 0) return;
@@ -112,6 +115,39 @@ export default function AtelierGallery({ onBack, onPick }: AtelierGalleryProps) 
     }
   };
 
+  const handleUploadReference = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    e.target.value = '';
+    setIsAnalyzing(true);
+    try {
+      const base64 = await new Promise<string>((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(reader.result as string);
+        reader.onerror = () => reject(reader.error);
+        reader.readAsDataURL(file);
+      });
+      const resp = await fetch('/api/analyze-template', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ imageBase64: base64, mimeType: file.type }),
+      });
+      const data = await resp.json();
+      if (data.error) throw new Error(data.error);
+      if (data.globalPrompt) {
+        setDescribePrompt(data.globalPrompt);
+        setGlobalPrompt(data.globalPrompt);
+      }
+      if (data.negativePrompt) {
+        setNegativePrompt(data.negativePrompt);
+      }
+    } catch (err) {
+      console.error('Reference analysis failed:', err);
+    } finally {
+      setIsAnalyzing(false);
+    }
+  };
+
   const handlePickAndContinue = () => {
     if (!selectedTemplate) {
       setSelectedTemplate(blankTemplate);
@@ -136,6 +172,13 @@ export default function AtelierGallery({ onBack, onPick }: AtelierGalleryProps) 
         flexDirection: 'column',
       }}
     >
+      <input
+        ref={refImageInputRef}
+        type="file"
+        accept="image/*"
+        style={{ display: 'none' }}
+        onChange={handleUploadReference}
+      />
       {/* Topbar */}
       <header
         style={{
@@ -156,8 +199,13 @@ export default function AtelierGallery({ onBack, onPick }: AtelierGalleryProps) 
           <span className="atl-chip">step 1 of 2 · style</span>
         </div>
         <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-          <button className="atl-btn" title="Upload a reference image to guide template generation">
-            <Upload size={13} /> Upload reference
+          <button
+            className="atl-btn"
+            title="Upload a reference image to guide template generation"
+            onClick={() => refImageInputRef.current?.click()}
+            disabled={isAnalyzing}
+          >
+            <Upload size={13} /> {isAnalyzing ? 'Analyzing…' : 'Upload reference'}
           </button>
           <button className="atl-btn atl-btn-pri" onClick={handlePickAndContinue} title="Use the selected template and start editing slides">
             Use template <ArrowRight size={13} />

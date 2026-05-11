@@ -1,10 +1,10 @@
 'use client';
 
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useRef } from 'react';
 import {
   Plus,
   Sparkles,
-  ImageIcon,
+  Pencil,
   Copy,
   Trash2,
   Wand2,
@@ -53,6 +53,17 @@ export default function AtelierWorkspace({
   const [drawer, setDrawer] = useState<null | 'discuss' | 'style'>(null);
   const [variationCount, setVariationCount] = useState(1);
   const [deleteConfirmIdx, setDeleteConfirmIdx] = useState<number | null>(null);
+  const [isApplyingStyle, setIsApplyingStyle] = useState(false);
+  const [chatInput, setChatInput] = useState('');
+  const { addChatMessage } = usePresentationStore();
+
+  const [editMode, setEditMode] = useState(false);
+  const [editPrompt, setEditPrompt] = useState('');
+  const [isEditing, setIsEditing] = useState(false);
+  const [selBox, setSelBox] = useState<{ x: number; y: number; w: number; h: number } | null>(null);
+  const [dragging, setDragging] = useState(false);
+  const [dragStart, setDragStart] = useState<{ x: number; y: number } | null>(null);
+  const stageRef = useRef<HTMLDivElement>(null);
 
   const slide = slides[activeSlideIndex];
 
@@ -96,6 +107,112 @@ export default function AtelierWorkspace({
       setIsGeneratingSlide(false);
     }
   }, [slide, isGeneratingSlide, selectedTemplate, aspectRatio, negativePrompt, activeSlideIndex, setIsGeneratingSlide, updateSlide, addCost]);
+
+  const getRelativePos = (e: React.MouseEvent) => {
+    if (!stageRef.current) return { px: 0, py: 0 };
+    const rect = stageRef.current.getBoundingClientRect();
+    return {
+      px: ((e.clientX - rect.left) / rect.width) * 100,
+      py: ((e.clientY - rect.top) / rect.height) * 100,
+    };
+  };
+
+  const handleStageMouseDown = (e: React.MouseEvent) => {
+    if (!editMode) return;
+    const { px, py } = getRelativePos(e);
+    setDragStart({ x: px, y: py });
+    setSelBox(null);
+    setDragging(true);
+  };
+
+  const handleStageMouseMove = (e: React.MouseEvent) => {
+    if (!dragging || !dragStart) return;
+    const { px, py } = getRelativePos(e);
+    setSelBox({
+      x: Math.min(dragStart.x, px),
+      y: Math.min(dragStart.y, py),
+      w: Math.abs(px - dragStart.x),
+      h: Math.abs(py - dragStart.y),
+    });
+  };
+
+  const handleStageMouseUp = () => {
+    setDragging(false);
+    setDragStart(null);
+  };
+
+  const handleSlideEdit = useCallback(async () => {
+    if (!slide?.image_url || !selBox || !editPrompt.trim() || isEditing) return;
+    setIsEditing(true);
+    try {
+      let base64 = slide.image_url;
+      if (base64.startsWith('data:')) {
+        base64 = base64.split(',')[1];
+      }
+      const res = await fetch('/api/inpaint', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          imageBase64: base64,
+          maskBounds: { x: selBox.x, y: selBox.y, width: selBox.w, height: selBox.h },
+          prompt: editPrompt.trim(),
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Edit failed');
+      if (data.imageBase64) {
+        updateSlide(activeSlideIndex, {
+          image_url: `data:image/png;base64,${data.imageBase64}`,
+        });
+        addCost('nano_banana_image', 1);
+      }
+      setEditMode(false);
+      setSelBox(null);
+      setEditPrompt('');
+    } catch (err) {
+      console.error('Slide edit error:', err);
+    } finally {
+      setIsEditing(false);
+    }
+  }, [slide, selBox, editPrompt, isEditing, activeSlideIndex, updateSlide, addCost]);
+
+  const handleApplyToDeck = useCallback(async () => {
+    const slidesWithPrompts = slides.filter((s) => s.local_prompt);
+    if (slidesWithPrompts.length === 0 || isApplyingStyle) return;
+    setIsApplyingStyle(true);
+    try {
+      const templateId = selectedTemplate?.id || 'blank-template';
+      const templateBase64 = selectedTemplate?.base64 || '';
+      for (let i = 0; i < slides.length; i++) {
+        const s = slides[i];
+        if (!s.local_prompt) continue;
+        const res = await fetch('/api/generate-slide', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            templateId,
+            templateBase64,
+            slidePrompt: s.local_prompt,
+            title: s.title,
+            subtitle: s.subtitle,
+            bullets: s.bullets,
+            aspectRatio,
+            negativePrompt,
+          }),
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'Generation failed');
+        if (data.imageBase64) {
+          updateSlide(i, { image_url: `data:image/png;base64,${data.imageBase64}` });
+          addCost('nano_banana_image', 1);
+        }
+      }
+    } catch (err) {
+      console.error('Apply to deck error:', err);
+    } finally {
+      setIsApplyingStyle(false);
+    }
+  }, [slides, isApplyingStyle, selectedTemplate, aspectRatio, negativePrompt, updateSlide, addCost]);
 
   const handleVariations = useCallback(async () => {
     if (!slide || isGeneratingSlide) return;
@@ -186,11 +303,11 @@ export default function AtelierWorkspace({
         }
       />
 
-      <div style={{ flex: 1, display: 'grid', gridTemplateColumns: '380px 1fr', minHeight: 0 }}>
+      <div style={{ flex: 1, display: 'grid', gridTemplateColumns: '380px 1fr', minHeight: 0, overflow: 'hidden' }}>
         {/* Outline rail */}
         <div
           className="atl-side"
-          style={{ display: 'flex', flexDirection: 'column', borderRight: '1px solid var(--color-border-default)' }}
+          style={{ display: 'flex', flexDirection: 'column', borderRight: '1px solid var(--color-border-default)', overflow: 'hidden' }}
         >
           <div
             style={{
@@ -288,6 +405,11 @@ export default function AtelierWorkspace({
               {/* Stage */}
               <div style={{ padding: '32px 32px 12px', display: 'flex', justifyContent: 'center' }}>
                 <div
+                  ref={stageRef}
+                  onMouseDown={handleStageMouseDown}
+                  onMouseMove={handleStageMouseMove}
+                  onMouseUp={handleStageMouseUp}
+                  onMouseLeave={handleStageMouseUp}
                   style={{
                     width: '100%',
                     maxWidth: 880,
@@ -297,13 +419,22 @@ export default function AtelierWorkspace({
                     boxShadow:
                       '0 30px 60px rgba(26,26,26,.08), 0 0 0 1px var(--color-border-default)',
                     background: 'var(--color-bg-hover)',
+                    position: 'relative',
+                    cursor: editMode ? 'crosshair' : 'default',
+                    userSelect: editMode ? 'none' : undefined,
                   }}
                 >
                   {slide.image_url ? (
                     <img
                       src={slide.image_url}
                       alt={slide.title}
-                      style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                      style={{
+                        width: '100%',
+                        height: '100%',
+                        objectFit: 'cover',
+                        filter: editMode ? 'brightness(0.6)' : undefined,
+                        transition: 'filter 0.2s',
+                      }}
                     />
                   ) : (
                     <div
@@ -320,8 +451,91 @@ export default function AtelierWorkspace({
                       No image generated yet
                     </div>
                   )}
+                  {editMode && selBox && (
+                    <div
+                      style={{
+                        position: 'absolute',
+                        left: `${selBox.x}%`,
+                        top: `${selBox.y}%`,
+                        width: `${selBox.w}%`,
+                        height: `${selBox.h}%`,
+                        border: '2px solid var(--color-accent)',
+                        background: 'rgba(250,248,244,0.18)',
+                        borderRadius: 3,
+                        pointerEvents: 'none',
+                        boxShadow: '0 0 0 9999px rgba(0,0,0,0.35)',
+                      }}
+                    />
+                  )}
+                  {editMode && !selBox && (
+                    <div
+                      style={{
+                        position: 'absolute',
+                        inset: 0,
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        color: '#faf8f4',
+                        fontSize: 14,
+                        fontWeight: 500,
+                        pointerEvents: 'none',
+                        letterSpacing: '0.02em',
+                      }}
+                    >
+                      Draw a box around the area to edit
+                    </div>
+                  )}
                 </div>
               </div>
+
+              {/* Edit prompt bar */}
+              {editMode && (
+                <div
+                  style={{
+                    display: 'flex',
+                    justifyContent: 'center',
+                    gap: 8,
+                    margin: '0 auto 8px',
+                    maxWidth: 880,
+                    width: '100%',
+                    padding: '0 32px',
+                  }}
+                >
+                  <input
+                    className="atl-input"
+                    style={{ flex: 1 }}
+                    placeholder="Describe the edit — e.g. &quot;Change the heading to blue&quot;"
+                    value={editPrompt}
+                    onChange={(e) => setEditPrompt(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') handleSlideEdit();
+                      if (e.key === 'Escape') {
+                        setEditMode(false);
+                        setSelBox(null);
+                        setEditPrompt('');
+                      }
+                    }}
+                    autoFocus
+                  />
+                  <button
+                    className="atl-btn atl-btn-pri"
+                    disabled={!selBox || !editPrompt.trim() || isEditing}
+                    onClick={handleSlideEdit}
+                  >
+                    {isEditing ? 'Editing…' : 'Apply edit'}
+                  </button>
+                  <button
+                    className="atl-btn"
+                    onClick={() => {
+                      setEditMode(false);
+                      setSelBox(null);
+                      setEditPrompt('');
+                    }}
+                  >
+                    Cancel
+                  </button>
+                </div>
+              )}
 
               {/* Stage toolbar */}
               <div style={{ display: 'flex', justifyContent: 'center', gap: 6, marginBottom: 18 }}>
@@ -333,8 +547,17 @@ export default function AtelierWorkspace({
                 >
                   <Sparkles size={12} /> {isGeneratingSlide ? 'Generating…' : 'Regenerate'}
                 </button>
-                <button className="atl-btn" title="Paint over a region of the image to fix or change part of it">
-                  <ImageIcon size={12} /> Inpaint region
+                <button
+                  className="atl-btn"
+                  title="Select a region of the slide to edit"
+                  disabled={!slide?.image_url}
+                  onClick={() => {
+                    setEditMode(!editMode);
+                    if (editMode) { setSelBox(null); setEditPrompt(''); }
+                  }}
+                  style={editMode ? { background: 'var(--color-accent)', color: '#fff', borderColor: 'var(--color-accent)' } : undefined}
+                >
+                  <Pencil size={12} /> Slide Edit
                 </button>
                 <div style={{ position: 'relative', display: 'inline-flex' }}>
                   <button
@@ -599,8 +822,38 @@ export default function AtelierWorkspace({
                   gap: 6,
                 }}
               >
-                <input className="atl-input" placeholder="Make the headline tighter…" />
-                <button className="atl-btn atl-btn-pri" title="Send message">
+                <input
+                  className="atl-input"
+                  placeholder="Make the headline tighter…"
+                  value={chatInput}
+                  onChange={(e) => setChatInput(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' && chatInput.trim()) {
+                      addChatMessage({
+                        id: `${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
+                        role: 'user',
+                        content: chatInput.trim(),
+                        timestamp: Date.now(),
+                      });
+                      setChatInput('');
+                    }
+                  }}
+                />
+                <button
+                  className="atl-btn atl-btn-pri"
+                  title="Send message"
+                  disabled={!chatInput.trim()}
+                  onClick={() => {
+                    if (!chatInput.trim()) return;
+                    addChatMessage({
+                      id: `${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
+                      role: 'user',
+                      content: chatInput.trim(),
+                      timestamp: Date.now(),
+                    });
+                    setChatInput('');
+                  }}
+                >
                   <Send size={13} />
                 </button>
               </div>
@@ -644,6 +897,7 @@ export default function AtelierWorkspace({
                   <button
                     key={ar}
                     className="atl-btn"
+                    onClick={() => usePresentationStore.getState().setAspectRatio(ar)}
                     style={{
                       flex: 1,
                       ...(ar === aspectRatio
@@ -663,8 +917,10 @@ export default function AtelierWorkspace({
                 className="atl-btn atl-btn-pri"
                 style={{ width: '100%', marginTop: 14, justifyContent: 'center' }}
                 title="Apply style settings to all slides in the deck"
+                onClick={handleApplyToDeck}
+                disabled={isApplyingStyle}
               >
-                <Sparkles size={13} /> Apply to deck
+                <Sparkles size={13} /> {isApplyingStyle ? 'Applying…' : 'Apply to deck'}
               </button>
             </div>
           )}

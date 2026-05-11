@@ -22,7 +22,14 @@ function openDB(): Promise<IDBDatabase> {
     return new Promise((resolve, reject) => {
         const request = indexedDB.open(DB_NAME, DB_VERSION);
         request.onerror = () => reject(request.error);
-        request.onsuccess = () => resolve(request.result);
+        request.onsuccess = () => {
+            const db = request.result;
+            db.onversionchange = () => { db.close(); };
+            resolve(db);
+        };
+        request.onblocked = () => {
+            console.warn('IndexedDB upgrade blocked — close other tabs and refresh');
+        };
         request.onupgradeneeded = () => {
             const db = request.result;
             if (!db.objectStoreNames.contains(PROJECT_STORE)) {
@@ -170,6 +177,7 @@ export interface PersistedTemplate {
 export async function getAllTemplates(): Promise<PersistedTemplate[]> {
     try {
         const db = await openDB();
+        if (!db.objectStoreNames.contains(TEMPLATE_STORE)) return [];
         return new Promise((resolve, reject) => {
             const tx = db.transaction(TEMPLATE_STORE, 'readonly');
             const store = tx.objectStore(TEMPLATE_STORE);
@@ -186,6 +194,7 @@ export async function getAllTemplates(): Promise<PersistedTemplate[]> {
 export async function putTemplate(template: PersistedTemplate): Promise<void> {
     try {
         const db = await openDB();
+        if (!db.objectStoreNames.contains(TEMPLATE_STORE)) return;
         return new Promise((resolve, reject) => {
             const tx = db.transaction(TEMPLATE_STORE, 'readwrite');
             const store = tx.objectStore(TEMPLATE_STORE);
