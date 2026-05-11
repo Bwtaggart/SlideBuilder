@@ -13,6 +13,7 @@ import {
   Download,
   X,
   Send,
+  Check,
 } from 'lucide-react';
 import AtelierTopbar from './AtelierTopbar';
 import PromptStrengthener from './PromptStrengthener';
@@ -269,6 +270,7 @@ export default function AtelierWorkspace({
             ...slide,
             slide_id: `${Date.now()}-${Math.random().toString(36).substring(2, 9)}`,
             image_url: `data:image/png;base64,${finalBase64}`,
+            variationOfId: slide.slide_id,
           });
           addCost('nano_banana_image', 1);
         } else if (result.status === 'rejected') {
@@ -284,6 +286,46 @@ export default function AtelierWorkspace({
       setIsGeneratingSlide(false);
     }
   }, [slide, isGeneratingSlide, selectedTemplate, aspectRatio, negativePrompt, variationCount, activeSlideIndex, setIsGeneratingSlide, insertSlidesAfter, addCost]);
+
+  // Compute slide labels: main slides get 01, 02, 03; variations get 01a, 01b, 01c
+  const slideLabels: string[] = (() => {
+    const labels: string[] = [];
+    let mainNum = 0;
+    const parentLabelMap: Record<string, string> = {};
+    const parentVarCount: Record<string, number> = {};
+    for (const s of slides) {
+      if (!s.variationOfId) {
+        mainNum++;
+        const label = String(mainNum).padStart(2, '0');
+        labels.push(label);
+        parentLabelMap[s.slide_id] = label;
+      } else {
+        const parentLabel = parentLabelMap[s.variationOfId] || '??';
+        const count = parentVarCount[s.variationOfId] || 0;
+        labels.push(`${parentLabel}${String.fromCharCode(97 + count)}`);
+        parentVarCount[s.variationOfId] = count + 1;
+      }
+    }
+    return labels;
+  })();
+
+  const mainSlideCount = slides.filter((s) => !s.variationOfId).length;
+
+  const handleApproveVariation = useCallback((variationIdx: number) => {
+    const variation = slides[variationIdx];
+    if (!variation.variationOfId) return;
+    const parentIdx = slides.findIndex((s) => s.slide_id === variation.variationOfId);
+    if (parentIdx === -1) return;
+    // Replace parent image with the approved variation, remove all variations of that parent
+    const newSlides = slides
+      .map((s, i) => (i === parentIdx ? { ...s, image_url: variation.image_url } : s))
+      .filter((s) => s.variationOfId !== variation.variationOfId)
+      .map((s, i) => ({ ...s, slide_index: i }));
+    usePresentationStore.setState({
+      slides: newSlides,
+      activeSlideIndex: Math.min(parentIdx, newSlides.length - 1),
+    });
+  }, [slides]);
 
   return (
     <div
@@ -344,7 +386,10 @@ export default function AtelierWorkspace({
             }}
           >
             <div className="atl-label" style={{ marginBottom: 0 }}>
-              Outline · {slides.length} slides
+              Outline · {mainSlideCount} slide{mainSlideCount !== 1 ? 's' : ''}
+              {slides.length > mainSlideCount && (
+                <span style={{ fontWeight: 400 }}> + {slides.length - mainSlideCount} var</span>
+              )}
             </div>
             <button
               className="atl-btn"
@@ -356,21 +401,25 @@ export default function AtelierWorkspace({
             </button>
           </div>
           <div style={{ flex: 1, overflowY: 'auto' }}>
-            {slides.map((s, i) => (
-              <div
-                key={s.slide_id}
-                className={`atl-outline-row ${i === activeSlideIndex ? 'on' : ''}`}
-                onClick={() => setActiveSlideIndex(i)}
-              >
+            {slides.map((s, i) => {
+              const isVariation = !!s.variationOfId;
+              return (
+                <div
+                  key={s.slide_id}
+                  className={`atl-outline-row ${i === activeSlideIndex ? 'on' : ''}`}
+                  onClick={() => setActiveSlideIndex(i)}
+                  style={isVariation ? { paddingLeft: 28 } : undefined}
+                >
                 <div
                   style={{
-                    width: 64,
-                    height: 40,
+                    width: isVariation ? 52 : 64,
+                    height: isVariation ? 32 : 40,
                     borderRadius: 4,
                     flexShrink: 0,
                     marginTop: 2,
                     overflow: 'hidden',
                     background: s.image_url ? undefined : 'var(--color-bg-hover)',
+                    border: isVariation ? '1.5px dashed var(--color-border-default)' : undefined,
                   }}
                 >
                   {s.image_url ? (
@@ -393,8 +442,10 @@ export default function AtelierWorkspace({
                       marginBottom: 3,
                     }}
                   >
-                    {String(i + 1).padStart(2, '0')} ·{' '}
-                    {s.image_url ? (
+                    {slideLabels[i]} ·{' '}
+                    {isVariation ? (
+                      <span style={{ color: '#7c3aed' }}>variation</span>
+                    ) : s.image_url ? (
                       <span style={{ color: 'var(--color-accent)' }}>rendered</span>
                     ) : (
                       <span>draft</span>
@@ -402,24 +453,47 @@ export default function AtelierWorkspace({
                   </div>
                   <div
                     className="atl-serif"
-                    style={{ fontSize: 15, lineHeight: 1.25, marginBottom: 3 }}
+                    style={{ fontSize: isVariation ? 13 : 15, lineHeight: 1.25, marginBottom: 3 }}
                   >
                     {s.title || 'Untitled slide'}
                   </div>
-                  <div
+                  {!isVariation && (
+                    <div
+                      style={{
+                        fontSize: 12,
+                        color: 'var(--color-text-secondary)',
+                        overflow: 'hidden',
+                        textOverflow: 'ellipsis',
+                        whiteSpace: 'nowrap',
+                      }}
+                    >
+                      {s.subtitle || s.local_prompt || ' '}
+                    </div>
+                  )}
+                </div>
+                {isVariation && (
+                  <button
+                    className="atl-btn"
+                    title="Approve this variation — replaces the parent slide"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleApproveVariation(i);
+                    }}
                     style={{
-                      fontSize: 12,
-                      color: 'var(--color-text-secondary)',
-                      overflow: 'hidden',
-                      textOverflow: 'ellipsis',
-                      whiteSpace: 'nowrap',
+                      padding: '3px 8px',
+                      fontSize: 10,
+                      flexShrink: 0,
+                      background: '#059669',
+                      color: '#fff',
+                      borderColor: '#059669',
                     }}
                   >
-                    {s.subtitle || s.local_prompt || ' '}
-                  </div>
-                </div>
+                    <Check size={10} /> Use
+                  </button>
+                )}
               </div>
-            ))}
+              );
+            })}
           </div>
         </div>
 
@@ -645,7 +719,7 @@ export default function AtelierWorkspace({
                   borderRadius: 8,
                   fontSize: 13,
                 }}>
-                  <span>Delete slide {String(deleteConfirmIdx + 1).padStart(2, '0')}?</span>
+                  <span>Delete slide {slideLabels[deleteConfirmIdx] || String(deleteConfirmIdx + 1).padStart(2, '0')}?</span>
                   <button
                     className="atl-btn"
                     style={{ padding: '4px 12px', fontSize: 12, background: '#b91c1c', color: '#fff', borderColor: '#b91c1c' }}
@@ -683,7 +757,7 @@ export default function AtelierWorkspace({
                     className="atl-serif"
                     style={{ fontSize: 22, letterSpacing: -0.5, marginBottom: 18 }}
                   >
-                    Slide {String(activeSlideIndex + 1).padStart(2, '0')}
+                    Slide {slideLabels[activeSlideIndex] || String(activeSlideIndex + 1).padStart(2, '0')}
                   </div>
 
                   <div

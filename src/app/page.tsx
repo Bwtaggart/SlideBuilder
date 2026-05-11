@@ -59,7 +59,7 @@ export default function Home() {
   const [view, setView] = useState<AtelierView>('home');
   const [projectName, setProjectName] = useState('Untitled Deck');
 
-  const { loadProjects, setActiveProjectId } = useProjectStore();
+  const { loadProjects, setActiveProjectId, saveProject } = useProjectStore();
   const { fetchBreakdown } = useCostStore();
   const {
     setGlobalPrompt,
@@ -112,10 +112,11 @@ export default function Home() {
     setView('gallery');
   };
 
-  const handleImportSlides = (importedSlides: Slide[], filename: string) => {
+  const handleImportSlides = async (importedSlides: Slide[], filename: string) => {
     resetPresentation();
     setActiveProjectId(null);
-    setProjectName(filename || 'Imported Deck');
+    const name = filename || 'Imported Deck';
+    setProjectName(name);
     if (importedSlides.length > 0) {
       usePresentationStore.setState({
         slides: importedSlides.map((s, i) => ({ ...s, slide_index: i })),
@@ -123,6 +124,20 @@ export default function Home() {
       });
     }
     setStep(3);
+
+    // Auto-create a project entry so auto-save starts immediately
+    const ps = usePresentationStore.getState();
+    await saveProject(name, {
+      name,
+      globalPrompt: ps.globalPrompt,
+      negativePrompt: ps.negativePrompt,
+      aspectRatio: ps.aspectRatio,
+      templateImages: ps.templateImages,
+      selectedTemplate: ps.selectedTemplate,
+      slides: ps.slides,
+      pptxExportMode: ps.pptxExportMode,
+    });
+
     setView('workspace');
   };
 
@@ -150,7 +165,23 @@ export default function Home() {
       {view === 'gallery' && (
         <AtelierGallery
           onBack={() => setView('home')}
-          onPick={() => setView('workspace')}
+          onPick={async () => {
+            // Auto-create a project entry so auto-save starts immediately
+            if (!useProjectStore.getState().activeProjectId) {
+              const ps = usePresentationStore.getState();
+              await saveProject(projectName, {
+                name: projectName,
+                globalPrompt: ps.globalPrompt,
+                negativePrompt: ps.negativePrompt,
+                aspectRatio: ps.aspectRatio,
+                templateImages: ps.templateImages,
+                selectedTemplate: ps.selectedTemplate,
+                slides: ps.slides,
+                pptxExportMode: ps.pptxExportMode,
+              });
+            }
+            setView('workspace');
+          }}
         />
       )}
       {view === 'generating' && (

@@ -35,6 +35,8 @@ export interface Slide {
   rendered_text_payload?: string;
   image_url: string;
   speaker_notes: string;
+  /** When set, this slide is a variation candidate of the slide with this ID */
+  variationOfId?: string;
 }
 
 // ─── App Types ─────────────────────────────────────────────────────

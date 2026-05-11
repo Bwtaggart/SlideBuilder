@@ -1,7 +1,7 @@
 'use client';
 
 import { useRef, useState } from 'react';
-import { DollarSign, Plus, Upload } from 'lucide-react';
+import { DollarSign, Plus, Trash2, Upload } from 'lucide-react';
 import { putProject } from '@/lib/idb';
 import { useProjectStore, type SavedProject } from '@/store/projectStore';
 import { useCostStore } from '@/store/costStore';
@@ -15,7 +15,8 @@ interface AtelierHomeProps {
 }
 
 export default function AtelierHome({ onOpenProject, onNew, onImportSlides }: AtelierHomeProps) {
-  const { projects, isLoaded, loadProjects } = useProjectStore();
+  const { projects, isLoaded, loadProjects, deleteProject } = useProjectStore();
+  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
   const { sessionCost, breakdown } = useCostStore();
   const empty = isLoaded && projects.length === 0;
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -125,7 +126,7 @@ export default function AtelierHome({ onOpenProject, onNew, onImportSlides }: At
             }}
           />
           <span className="atl-serif" style={{ fontSize: 18, letterSpacing: -0.3 }}>
-            Slidebuilder
+            SlideBuilder
           </span>
         </div>
         <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
@@ -188,7 +189,7 @@ export default function AtelierHome({ onOpenProject, onNew, onImportSlides }: At
                   margin: '0 auto 36px',
                 }}
               >
-                Slidebuilder turns rough notes and reference shots into finished decks.
+                SlideBuilder turns rough notes and reference shots into finished decks.
                 Pick a starting template, dictate the look, then let the editor do the
                 heavy lifting.
               </p>
@@ -271,7 +272,7 @@ export default function AtelierHome({ onOpenProject, onNew, onImportSlides }: At
                   <div
                     key={p.id}
                     className="atl-card atl-tile"
-                    style={{ overflow: 'hidden' }}
+                    style={{ overflow: 'hidden', position: 'relative' }}
                     onClick={() => onOpenProject(p)}
                   >
                     <div
@@ -293,15 +294,41 @@ export default function AtelierHome({ onOpenProject, onNew, onImportSlides }: At
                     </div>
                     <div style={{ padding: '14px 16px' }}>
                       <div
-                        className="atl-serif"
                         style={{
-                          fontSize: 18,
-                          letterSpacing: -0.3,
+                          display: 'flex',
+                          justifyContent: 'space-between',
+                          alignItems: 'flex-start',
                           marginBottom: 6,
-                          lineHeight: 1.2,
                         }}
                       >
-                        {p.name}
+                        <div
+                          className="atl-serif"
+                          style={{
+                            fontSize: 18,
+                            letterSpacing: -0.3,
+                            lineHeight: 1.2,
+                            flex: 1,
+                            minWidth: 0,
+                          }}
+                        >
+                          {p.name}
+                        </div>
+                        <button
+                          className="atl-btn"
+                          title="Delete project"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setConfirmDeleteId(p.id);
+                          }}
+                          style={{
+                            padding: '3px 6px',
+                            color: 'var(--color-text-secondary)',
+                            flexShrink: 0,
+                            marginLeft: 8,
+                          }}
+                        >
+                          <Trash2 size={12} />
+                        </button>
                       </div>
                       <div
                         style={{
@@ -320,6 +347,59 @@ export default function AtelierHome({ onOpenProject, onNew, onImportSlides }: At
                         </span>
                       </div>
                     </div>
+
+                    {/* Delete confirmation overlay */}
+                    {confirmDeleteId === p.id && (
+                      <div
+                        onClick={(e) => e.stopPropagation()}
+                        style={{
+                          position: 'absolute',
+                          inset: 0,
+                          background: 'rgba(0,0,0,0.7)',
+                          display: 'flex',
+                          flexDirection: 'column',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          gap: 12,
+                          borderRadius: 'inherit',
+                        }}
+                      >
+                        <div style={{ color: '#fff', fontSize: 14, fontWeight: 500, textAlign: 'center', padding: '0 16px' }}>
+                          Delete &ldquo;{p.name}&rdquo;?
+                        </div>
+                        <div style={{ display: 'flex', gap: 8 }}>
+                          <button
+                            className="atl-btn"
+                            style={{
+                              background: '#dc2626',
+                              color: '#fff',
+                              border: 'none',
+                              padding: '6px 16px',
+                              fontSize: 12,
+                            }}
+                            onClick={async () => {
+                              await deleteProject(p.id);
+                              setConfirmDeleteId(null);
+                            }}
+                          >
+                            Yes, delete
+                          </button>
+                          <button
+                            className="atl-btn"
+                            style={{
+                              background: 'rgba(255,255,255,0.15)',
+                              color: '#fff',
+                              border: '1px solid rgba(255,255,255,0.3)',
+                              padding: '6px 16px',
+                              fontSize: 12,
+                            }}
+                            onClick={() => setConfirmDeleteId(null)}
+                          >
+                            Cancel
+                          </button>
+                        </div>
+                      </div>
+                    )}
                   </div>
                 ))}
               </div>
