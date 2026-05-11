@@ -72,10 +72,22 @@ export interface ChatMessage {
   timestamp: number;
 }
 
+export interface GraphicOverlay {
+  src: string;
+  xPct: number;
+  yPct: number;
+  widthPct: number;
+  heightPct: number;
+}
+
 export interface TemplateImage {
   id: string;
   base64: string;
   url?: string;
+  /** Original clean template before graphic overlays were added */
+  originalBase64?: string;
+  /** Graphics to composite on top of generated slides */
+  overlays?: GraphicOverlay[];
 }
 
 export interface CostBreakdown {

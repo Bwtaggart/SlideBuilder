@@ -19,6 +19,7 @@ import PromptStrengthener from './PromptStrengthener';
 import { usePresentationStore } from '@/store/presentationStore';
 import { useCostStore } from '@/store/costStore';
 import { formatCost } from '@/lib/calculateCost';
+import { compositeOverlays } from '@/lib/compositeOverlays';
 
 interface AtelierWorkspaceProps {
   projectName: string;
@@ -78,7 +79,7 @@ export default function AtelierWorkspace({
     setIsGeneratingSlide(true);
     try {
       const templateId = selectedTemplate?.id || 'blank-template';
-      const templateBase64 = selectedTemplate?.base64 || '';
+      const templateBase64 = selectedTemplate?.originalBase64 || selectedTemplate?.base64 || '';
       const res = await fetch('/api/generate-slide', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -96,8 +97,11 @@ export default function AtelierWorkspace({
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Generation failed');
       if (data.imageBase64) {
+        const finalBase64 = selectedTemplate?.overlays?.length
+          ? await compositeOverlays(data.imageBase64, selectedTemplate.overlays)
+          : data.imageBase64;
         updateSlide(activeSlideIndex, {
-          image_url: `data:image/png;base64,${data.imageBase64}`,
+          image_url: `data:image/png;base64,${finalBase64}`,
         });
         addCost('nano_banana_image', 1);
       }
@@ -182,7 +186,7 @@ export default function AtelierWorkspace({
     setIsApplyingStyle(true);
     try {
       const templateId = selectedTemplate?.id || 'blank-template';
-      const templateBase64 = selectedTemplate?.base64 || '';
+      const templateBase64 = selectedTemplate?.originalBase64 || selectedTemplate?.base64 || '';
       for (let i = 0; i < slides.length; i++) {
         const s = slides[i];
         if (!s.local_prompt) continue;
@@ -203,7 +207,10 @@ export default function AtelierWorkspace({
         const data = await res.json();
         if (!res.ok) throw new Error(data.error || 'Generation failed');
         if (data.imageBase64) {
-          updateSlide(i, { image_url: `data:image/png;base64,${data.imageBase64}` });
+          const finalBase64 = selectedTemplate?.overlays?.length
+            ? await compositeOverlays(data.imageBase64, selectedTemplate.overlays)
+            : data.imageBase64;
+          updateSlide(i, { image_url: `data:image/png;base64,${finalBase64}` });
           addCost('nano_banana_image', 1);
         }
       }
@@ -220,7 +227,7 @@ export default function AtelierWorkspace({
     setIsGeneratingSlide(true);
     try {
       const templateId = selectedTemplate?.id || 'blank-template';
-      const templateBase64 = selectedTemplate?.base64 || '';
+      const templateBase64 = selectedTemplate?.originalBase64 || selectedTemplate?.base64 || '';
       const results = await Promise.allSettled(
         Array.from({ length: variationCount }, (_, i) =>
           fetch('/api/generate-slide', {
@@ -248,10 +255,13 @@ export default function AtelierWorkspace({
       const newSlides = [];
       for (const result of results) {
         if (result.status === 'fulfilled' && result.value.imageBase64) {
+          const finalBase64 = selectedTemplate?.overlays?.length
+            ? await compositeOverlays(result.value.imageBase64, selectedTemplate.overlays)
+            : result.value.imageBase64;
           newSlides.push({
             ...slide,
             slide_id: `${Date.now()}-${Math.random().toString(36).substring(2, 9)}`,
-            image_url: `data:image/png;base64,${result.value.imageBase64}`,
+            image_url: `data:image/png;base64,${finalBase64}`,
           });
           addCost('nano_banana_image', 1);
         } else if (result.status === 'rejected') {

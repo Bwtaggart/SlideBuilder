@@ -164,9 +164,14 @@ export default function AtelierGallery({ onBack, onPick }: AtelierGalleryProps) 
     await deleteTemplate(id);
   };
 
-  const handleCustomizeSave = (compositeBase64: string) => {
+  const handleCustomizeSave = (compositeBase64: string, overlays: import('@/lib/types').GraphicOverlay[]) => {
     const id = `custom-${Date.now()}`;
-    const newTemplate: TemplateImage = { id, base64: compositeBase64 };
+    const newTemplate: TemplateImage = {
+      id,
+      base64: compositeBase64,
+      originalBase64: selectedTemplate?.base64,
+      overlays: overlays.length > 0 ? overlays : undefined,
+    };
     setTemplateImages([...templateImages, newTemplate]);
     setSelectedTemplate(newTemplate);
     setIsCustomizing(false);

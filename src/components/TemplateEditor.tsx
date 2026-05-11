@@ -2,6 +2,7 @@
 
 import { useState, useRef, useCallback, useEffect } from 'react';
 import { Plus, Trash2, X, Check, Move } from 'lucide-react';
+import type { GraphicOverlay } from '@/lib/types';
 
 interface Graphic {
   id: string;
@@ -16,7 +17,7 @@ interface Graphic {
 
 interface TemplateEditorProps {
   templateBase64: string;
-  onSave: (compositeBase64: string) => void;
+  onSave: (compositeBase64: string, overlays: GraphicOverlay[]) => void;
   onCancel: () => void;
 }
 
@@ -143,10 +144,19 @@ export default function TemplateEditor({ templateBase64, onSave, onCancel }: Tem
     const scaleX = img.naturalWidth / areaW;
     const scaleY = img.naturalHeight / areaH;
 
+    // Build percentage-based overlays for post-generation compositing
+    const overlays: GraphicOverlay[] = graphics.map((g) => ({
+      src: g.src,
+      xPct: g.x / areaW,
+      yPct: g.y / areaH,
+      widthPct: g.width / areaW,
+      heightPct: g.height / areaH,
+    }));
+
     let remaining = graphics.length;
     if (remaining === 0) {
       const base64 = canvas.toDataURL('image/png').split(',')[1];
-      onSave(base64);
+      onSave(base64, []);
       return;
     }
 
@@ -157,7 +167,7 @@ export default function TemplateEditor({ templateBase64, onSave, onCancel }: Tem
         remaining--;
         if (remaining === 0) {
           const base64 = canvas.toDataURL('image/png').split(',')[1];
-          onSave(base64);
+          onSave(base64, overlays);
         }
       };
       gImg.src = g.src;
