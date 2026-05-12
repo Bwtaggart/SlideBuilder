@@ -2,7 +2,7 @@
  * IndexedDB storage helper for SlideBuilder projects.
  * Uses IndexedDB instead of localStorage to handle large base64 image data.
  */
-import type { ServiceType } from './types';
+import type { ServiceType, GraphicOverlay } from './types';
 
 const DB_NAME = 'slidebuilder';
 const DB_VERSION = 3;
@@ -171,6 +171,8 @@ export interface PersistedTemplate {
     id: string;
     base64: string;
     url?: string;
+    originalBase64?: string;
+    overlays?: GraphicOverlay[];
     createdAt: number;
 }
 

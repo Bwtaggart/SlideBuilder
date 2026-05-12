@@ -44,6 +44,8 @@ export default function AtelierGallery({ onBack, onPick }: AtelierGalleryProps) 
           id: t.id,
           base64: t.base64,
           url: t.url,
+          originalBase64: t.originalBase64,
+          overlays: t.overlays,
         }));
         setTemplateImages(images);
       }
@@ -74,7 +76,14 @@ export default function AtelierGallery({ onBack, onPick }: AtelierGalleryProps) 
     if (template.isBlank) {
       setSelectedTemplate(blankTemplate);
     } else {
-      setSelectedTemplate({ id: template.id, base64: template.base64, url: template.url });
+      // Preserve originalBase64 and overlays for customized templates
+      setSelectedTemplate({
+        id: template.id,
+        base64: template.base64,
+        url: template.url,
+        originalBase64: template.originalBase64,
+        overlays: template.overlays,
+      });
     }
   };
 
@@ -151,7 +160,14 @@ export default function AtelierGallery({ onBack, onPick }: AtelierGalleryProps) 
       setSelectedTemplate(blankTemplate);
     }
     if (tpl.base64) {
-      await putTemplate({ id: tpl.id, base64: tpl.base64, url: tpl.url, createdAt: Date.now() });
+      await putTemplate({
+        id: tpl.id,
+        base64: tpl.base64,
+        url: tpl.url,
+        originalBase64: tpl.originalBase64,
+        overlays: tpl.overlays,
+        createdAt: Date.now(),
+      });
     }
     onPick();
   };
@@ -166,10 +182,12 @@ export default function AtelierGallery({ onBack, onPick }: AtelierGalleryProps) 
 
   const handleCustomizeSave = (compositeBase64: string, overlays: import('@/lib/types').GraphicOverlay[]) => {
     const id = `custom-${Date.now()}`;
+    // Always trace back to the deepest original (clean template without overlays)
+    const cleanOriginal = selectedTemplate?.originalBase64 || selectedTemplate?.base64;
     const newTemplate: TemplateImage = {
       id,
       base64: compositeBase64,
-      originalBase64: selectedTemplate?.base64,
+      originalBase64: cleanOriginal,
       overlays: overlays.length > 0 ? overlays : undefined,
     };
     setTemplateImages([...templateImages, newTemplate]);
@@ -471,7 +489,7 @@ export default function AtelierGallery({ onBack, onPick }: AtelierGalleryProps) 
 
       {isCustomizing && selectedTemplate?.base64 && (
         <TemplateEditor
-          templateBase64={selectedTemplate.base64}
+          templateBase64={selectedTemplate.originalBase64 || selectedTemplate.base64}
           onSave={handleCustomizeSave}
           onCancel={() => setIsCustomizing(false)}
         />
