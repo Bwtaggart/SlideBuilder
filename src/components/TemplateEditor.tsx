@@ -1,8 +1,9 @@
 'use client';
 
 import { useState, useRef, useCallback, useEffect } from 'react';
-import { Plus, Trash2, X, Check, Move } from 'lucide-react';
+import { Plus, Trash2, X, Check, Move, Loader2, Eraser } from 'lucide-react';
 import type { GraphicOverlay } from '@/lib/types';
+import { removeBackground } from '@/lib/removeBackground';
 
 interface Graphic {
   id: string;
@@ -40,6 +41,8 @@ export default function TemplateEditor({ templateBase64, onSave, onCancel }: Tem
   const templateImgRef = useRef<HTMLImageElement>(null);
   const [canvasSize, setCanvasSize] = useState({ width: 0, height: 0 });
   const [templateAspect, setTemplateAspect] = useState<string>('16/10');
+  const [removeBg, setRemoveBg] = useState(true);
+  const [processingBg, setProcessingBg] = useState<string | null>(null); // graphic id being processed
 
   useEffect(() => {
     // Detect the template image's natural aspect ratio so the editor
@@ -65,33 +68,85 @@ export default function TemplateEditor({ templateBase64, onSave, onCancel }: Tem
     return () => obs.disconnect();
   }, []);
 
+  const addGraphicFromDataUrl = useCallback((dataUrl: string, gId?: string) => {
+    const img = new Image();
+    img.onload = () => {
+      const maxW = canvasSize.width * 0.4;
+      const scale = img.width > maxW ? maxW / img.width : 1;
+      const id = gId || `g-${Date.now()}`;
+      const g: Graphic = {
+        id,
+        src: dataUrl,
+        x: canvasSize.width * 0.1,
+        y: canvasSize.height * 0.1,
+        width: img.width * scale,
+        height: img.height * scale,
+        naturalWidth: img.width,
+        naturalHeight: img.height,
+      };
+      setGraphics((prev) => {
+        // If updating an existing graphic (after bg removal), replace it
+        const existing = prev.findIndex((p) => p.id === id);
+        if (existing !== -1) {
+          const updated = [...prev];
+          updated[existing] = { ...updated[existing], src: dataUrl };
+          return updated;
+        }
+        return [...prev, g];
+      });
+      setSelectedId(id);
+    };
+    img.src = dataUrl;
+  }, [canvasSize]);
+
   const handleAddGraphic = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
     e.target.value = '';
     const reader = new FileReader();
-    reader.onload = () => {
-      const img = new Image();
-      img.onload = () => {
-        const maxW = canvasSize.width * 0.4;
-        const scale = img.width > maxW ? maxW / img.width : 1;
-        const g: Graphic = {
-          id: `g-${Date.now()}`,
-          src: reader.result as string,
-          x: canvasSize.width * 0.1,
-          y: canvasSize.height * 0.1,
-          width: img.width * scale,
-          height: img.height * scale,
-          naturalWidth: img.width,
-          naturalHeight: img.height,
-        };
-        setGraphics((prev) => [...prev, g]);
-        setSelectedId(g.id);
-      };
-      img.src = reader.result as string;
+    reader.onload = async () => {
+      const dataUrl = reader.result as string;
+      const gId = `g-${Date.now()}`;
+
+      // Add the graphic immediately (original or transparent)
+      addGraphicFromDataUrl(dataUrl, gId);
+
+      // If Remove BG is enabled, process in the background and swap the src
+      if (removeBg) {
+        setProcessingBg(gId);
+        try {
+          const transparentUrl = await removeBackground(dataUrl);
+          // Replace the graphic's src with the transparent version
+          setGraphics((prev) =>
+            prev.map((g) => (g.id === gId ? { ...g, src: transparentUrl } : g)),
+          );
+        } catch (err) {
+          console.error('Background removal failed:', err);
+          // Keep the original image — no-op
+        } finally {
+          setProcessingBg(null);
+        }
+      }
     };
     reader.readAsDataURL(file);
   };
+
+  const handleRemoveBgForSelected = useCallback(async () => {
+    if (!selectedId) return;
+    const g = graphics.find((gr) => gr.id === selectedId);
+    if (!g) return;
+    setProcessingBg(selectedId);
+    try {
+      const transparentUrl = await removeBackground(g.src);
+      setGraphics((prev) =>
+        prev.map((gr) => (gr.id === selectedId ? { ...gr, src: transparentUrl } : gr)),
+      );
+    } catch (err) {
+      console.error('Background removal failed:', err);
+    } finally {
+      setProcessingBg(null);
+    }
+  }, [selectedId, graphics]);
 
   const handleMouseDown = useCallback(
     (e: React.MouseEvent, id: string, type: 'move' | 'resize') => {
@@ -230,17 +285,45 @@ export default function TemplateEditor({ templateBase64, onSave, onCancel }: Tem
         <button
           className="atl-btn atl-btn-pri"
           onClick={() => fileInputRef.current?.click()}
+          disabled={!!processingBg}
         >
           <Plus size={13} /> Add graphic
         </button>
+        <button
+          className="atl-btn"
+          title={removeBg ? 'Auto-remove background is ON' : 'Auto-remove background is OFF'}
+          onClick={() => setRemoveBg(!removeBg)}
+          style={{
+            background: removeBg ? 'var(--color-accent)' : undefined,
+            color: removeBg ? '#fff' : undefined,
+            borderColor: removeBg ? 'var(--color-accent)' : undefined,
+          }}
+        >
+          <Eraser size={13} /> Remove BG {removeBg ? 'ON' : 'OFF'}
+        </button>
         {selectedId && (
-          <button
-            className="atl-btn"
-            style={{ color: '#b91c1c' }}
-            onClick={() => handleDelete(selectedId)}
-          >
-            <Trash2 size={13} /> Remove
-          </button>
+          <>
+            <button
+              className="atl-btn"
+              title="Remove background from selected graphic"
+              onClick={handleRemoveBgForSelected}
+              disabled={!!processingBg}
+            >
+              {processingBg === selectedId ? (
+                <Loader2 size={13} style={{ animation: 'atl-spin 0.8s linear infinite' }} />
+              ) : (
+                <Eraser size={13} />
+              )}{' '}
+              Remove BG
+            </button>
+            <button
+              className="atl-btn"
+              style={{ color: '#b91c1c' }}
+              onClick={() => handleDelete(selectedId)}
+            >
+              <Trash2 size={13} /> Remove
+            </button>
+          </>
         )}
         <div style={{ width: 1, background: 'var(--color-border-default)', margin: '0 4px' }} />
         <button className="atl-btn atl-btn-pri" onClick={handleSave}>
@@ -303,6 +386,24 @@ export default function TemplateEditor({ templateBase64, onSave, onCancel }: Tem
                 draggable={false}
                 style={{ width: '100%', height: '100%', objectFit: 'contain', pointerEvents: 'none' }}
               />
+              {processingBg === g.id && (
+                <div
+                  style={{
+                    position: 'absolute',
+                    inset: 0,
+                    background: 'rgba(0,0,0,0.5)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    borderRadius: 2,
+                  }}
+                >
+                  <div style={{ color: '#fff', fontSize: 11, display: 'flex', alignItems: 'center', gap: 6 }}>
+                    <Loader2 size={14} style={{ animation: 'atl-spin 0.8s linear infinite' }} />
+                    Removing BG…
+                  </div>
+                </div>
+              )}
               {isSel && (
                 <>
                   {/* Move handle */}

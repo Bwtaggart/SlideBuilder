@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useCallback, useRef } from 'react';
+import { useState, useCallback, useRef, useEffect } from 'react';
 import {
   Plus,
   Sparkles,
@@ -14,11 +14,13 @@ import {
   X,
   Send,
   Check,
+  Loader2,
 } from 'lucide-react';
 import AtelierTopbar from './AtelierTopbar';
 import PromptStrengthener from './PromptStrengthener';
 import { usePresentationStore } from '@/store/presentationStore';
 import { useCostStore } from '@/store/costStore';
+import { useToast } from './Toast';
 import { formatCost } from '@/lib/calculateCost';
 import { compositeOverlays } from '@/lib/compositeOverlays';
 
@@ -57,7 +59,10 @@ export default function AtelierWorkspace({
   const [deleteConfirmIdx, setDeleteConfirmIdx] = useState<number | null>(null);
   const [isApplyingStyle, setIsApplyingStyle] = useState(false);
   const [chatInput, setChatInput] = useState('');
+  const [isSendingChat, setIsSendingChat] = useState(false);
+  const chatEndRef = useRef<HTMLDivElement>(null);
   const { addChatMessage } = usePresentationStore();
+  const { showToast } = useToast();
 
   const [editMode, setEditMode] = useState(false);
   const [editPrompt, setEditPrompt] = useState('');
@@ -326,6 +331,75 @@ export default function AtelierWorkspace({
       activeSlideIndex: Math.min(parentIdx, newSlides.length - 1),
     });
   }, [slides]);
+
+  // Auto-scroll chat to bottom when messages change
+  useEffect(() => {
+    chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [chatMessages]);
+
+  const handleChatSend = useCallback(async () => {
+    if (!chatInput.trim() || isSendingChat) return;
+    if (!slide?.image_url) {
+      showToast('warning', 'No image', 'Generate a slide first before discussing.');
+      return;
+    }
+
+    const userMsg = {
+      id: `${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
+      role: 'user' as const,
+      content: chatInput.trim(),
+      timestamp: Date.now(),
+    };
+    addChatMessage(userMsg);
+    const sentText = chatInput.trim();
+    setChatInput('');
+    setIsSendingChat(true);
+
+    try {
+      const res = await fetch('/api/refine', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          currentImageBase64: slide.image_url.replace(/^data:image\/\w+;base64,/, ''),
+          chatHistory: chatMessages.map((m) => ({ role: m.role, content: m.content })),
+          newMessage: sentText,
+        }),
+      });
+
+      if (!res.ok) {
+        const data = await res.json();
+        if (res.status === 400 || res.status === 403) {
+          showToast('warning', 'Safety Policy', data.error || 'Cannot process this request.');
+          return;
+        }
+        throw new Error(data.error || 'Refinement failed');
+      }
+
+      const data = await res.json();
+
+      // Update slide image if a new one was returned
+      if (data.imageBase64) {
+        updateSlide(activeSlideIndex, {
+          image_url: `data:image/png;base64,${data.imageBase64}`,
+        });
+        addCost('nano_banana_image', 1);
+      }
+
+      // Add assistant response
+      addChatMessage({
+        id: `${Date.now()}-assistant`,
+        role: 'assistant',
+        content: data.text || 'Updated the image based on your request.',
+        timestamp: Date.now(),
+        imageUrl: data.imageBase64 ? `data:image/png;base64,${data.imageBase64}` : undefined,
+      });
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : 'An error occurred';
+      showToast('error', 'Refinement Error', msg);
+    } finally {
+      setIsSendingChat(false);
+    }
+  }, [chatInput, isSendingChat, slide, chatMessages, activeSlideIndex, addChatMessage, updateSlide, addCost, showToast]);
 
   return (
     <div
@@ -896,6 +970,12 @@ export default function AtelierWorkspace({
                   gap: 10,
                 }}
               >
+                {chatMessages.length === 0 && (
+                  <div style={{ color: 'var(--color-text-secondary)', fontSize: 13, textAlign: 'center', marginTop: 32, lineHeight: 1.6 }}>
+                    Chat with AI to refine your slide.<br />
+                    e.g. &ldquo;Make the background darker&rdquo; or &ldquo;Add a subtitle&rdquo;
+                  </div>
+                )}
                 {chatMessages.map((m) => (
                   <div
                     key={m.id}
@@ -914,6 +994,25 @@ export default function AtelierWorkspace({
                     {m.content}
                   </div>
                 ))}
+                {isSendingChat && (
+                  <div
+                    style={{
+                      alignSelf: 'flex-start',
+                      padding: '10px 14px',
+                      borderRadius: 14,
+                      background: 'var(--color-bg-sidebar)',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 8,
+                      fontSize: 13,
+                      color: 'var(--color-text-secondary)',
+                    }}
+                  >
+                    <Loader2 size={14} style={{ animation: 'atl-spin 0.8s linear infinite' }} />
+                    Refining slide…
+                  </div>
+                )}
+                <div ref={chatEndRef} />
               </div>
               <div
                 style={{
@@ -925,37 +1024,21 @@ export default function AtelierWorkspace({
               >
                 <input
                   className="atl-input"
-                  placeholder="Make the headline tighter…"
+                  placeholder={slide?.image_url ? 'Make the background darker…' : 'Generate a slide first…'}
                   value={chatInput}
                   onChange={(e) => setChatInput(e.target.value)}
                   onKeyDown={(e) => {
-                    if (e.key === 'Enter' && chatInput.trim()) {
-                      addChatMessage({
-                        id: `${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
-                        role: 'user',
-                        content: chatInput.trim(),
-                        timestamp: Date.now(),
-                      });
-                      setChatInput('');
-                    }
+                    if (e.key === 'Enter' && !e.shiftKey) handleChatSend();
                   }}
+                  disabled={isSendingChat || !slide?.image_url}
                 />
                 <button
                   className="atl-btn atl-btn-pri"
                   title="Send message"
-                  disabled={!chatInput.trim()}
-                  onClick={() => {
-                    if (!chatInput.trim()) return;
-                    addChatMessage({
-                      id: `${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
-                      role: 'user',
-                      content: chatInput.trim(),
-                      timestamp: Date.now(),
-                    });
-                    setChatInput('');
-                  }}
+                  disabled={!chatInput.trim() || isSendingChat || !slide?.image_url}
+                  onClick={handleChatSend}
                 >
-                  <Send size={13} />
+                  {isSendingChat ? <Loader2 size={13} style={{ animation: 'atl-spin 0.8s linear infinite' }} /> : <Send size={13} />}
                 </button>
               </div>
             </>
