@@ -4,7 +4,7 @@
 
 - A Google Cloud account with billing enabled
 - `gcloud` CLI installed and authenticated (`gcloud auth login`)
-- A domain name (optional but recommended for HTTPS)
+- A domain name (strongly recommended — see [Security note on HTTP](#security-note-http-deployments))
 
 ---
 
@@ -71,9 +71,10 @@ gcloud projects add-iam-policy-binding $PROJECT_ID \
    - Authorized redirect URIs: `https://slides.yourdomain.com/api/auth/callback/google`
 5. Copy the **Client ID** and **Client Secret**
 
-> If you don't have a domain yet, use `http://EXTERNAL_IP` as the origin and
-> `http://EXTERNAL_IP/api/auth/callback/google` as the redirect URI. You can
-> update these after the instance is created and you know the IP.
+> **If you don't have a domain yet**, use `http://EXTERNAL_IP` as the origin
+> and `http://EXTERNAL_IP/api/auth/callback/google` as the redirect URI.
+> You can update these after the instance is created and you know the IP.
+> See the [security note below](#security-note-http-deployments) about HTTP limitations.
 
 ---
 
@@ -196,6 +197,26 @@ To reduce cost, stop the instance when not in use:
 ```bash
 gcloud compute instances stop slidebuilder --zone=us-central1-a
 gcloud compute instances start slidebuilder --zone=us-central1-a
+```
+
+---
+
+## Security note: HTTP deployments
+
+Deploying without a domain serves the app over **plain HTTP**. This means:
+
+- Session cookies are sent **unencrypted** (no `Secure` flag)
+- Anyone on the network path can intercept cookies and hijack sessions
+- Google OAuth tokens transit in cleartext during the login flow
+
+**HTTP is acceptable only for local testing.** For any deployment accessible
+over the internet, use a domain with HTTPS (Caddy handles TLS automatically).
+
+If you must temporarily use a raw IP, restrict access with a firewall rule:
+```bash
+gcloud compute firewall-rules create allow-http-restricted \
+  --allow=tcp:80 --target-tags=http-server \
+  --source-ranges="YOUR_IP/32"
 ```
 
 ---
