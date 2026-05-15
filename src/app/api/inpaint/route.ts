@@ -20,7 +20,7 @@ export async function POST(req: NextRequest) {
 
         const contents = [
             {
-                text: `Edit this image. Only modify the specific region described below, keeping everything else exactly the same. ${regionDesc} In that region: ${prompt}. Make the edit seamless and natural-looking, matching the surrounding style perfectly.`,
+                text: `Edit this image. Only modify the specific region described below, keeping everything else exactly the same. ${regionDesc} In that region: ${prompt}. Make the edit seamless and natural-looking, matching the surrounding style perfectly. If the edit involves text, render every letter crisp and legible with clean sans-serif typography, accurate spelling, and high contrast against the surrounding image — no warped, doubled, or misspelled glyphs.`,
             },
             {
                 inlineData: {

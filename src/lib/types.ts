@@ -29,10 +29,11 @@ export interface Slide {
   presentation_id: string;
   slide_index: number;
   local_prompt: string;
+  // Optional structured-text fields, retained for backward compatibility with
+  // saved projects. The current generation pipeline does not require them.
   title: string;
   subtitle: string;
   bullets: string[];
-  rendered_text_payload?: string;
   image_url: string;
   speaker_notes: string;
 }
@@ -40,22 +41,6 @@ export interface Slide {
 // ─── App Types ─────────────────────────────────────────────────────
 
 export type AspectRatio = '16:9' | '4:3' | '9:16';
-export type PptxExportMode = 'image' | 'hybrid_editable';
-
-export interface TextBoxRect {
-  xPct: number;
-  yPct: number;
-  wPct: number;
-  hPct: number;
-}
-
-export interface SlideTextLayout {
-  title: TextBoxRect;
-  subtitle: TextBoxRect;
-  bullets: TextBoxRect;
-}
-
-export type AspectRatioTextLayouts = Record<AspectRatio, SlideTextLayout>;
 
 export interface BoundingBox {
   x: number;

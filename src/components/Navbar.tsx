@@ -19,7 +19,7 @@ interface Props {
 }
 
 export default function Navbar({ isInProject, onBackToProjects }: Props) {
-    const { currentStep, setStep, selectedTemplate, templateImages, globalPrompt, negativePrompt, aspectRatio, slides, pptxExportMode } =
+    const { currentStep, setStep, selectedTemplate, templateImages, globalPrompt, negativePrompt, aspectRatio, slides } =
         usePresentationStore();
     const { activeProjectId, saveProject, updateProject } = useProjectStore();
     const { showToast } = useToast();
@@ -45,7 +45,6 @@ export default function Navbar({ isInProject, onBackToProjects }: Props) {
                 templateImages,
                 selectedTemplate,
                 slides,
-                pptxExportMode,
                 thumbnailUrl: thumbnail,
             });
             showToast('success', 'Saved', 'Project updated.');
@@ -68,7 +67,6 @@ export default function Navbar({ isInProject, onBackToProjects }: Props) {
             templateImages,
             selectedTemplate,
             slides,
-            pptxExportMode,
             thumbnailUrl: thumbnail,
         });
         showToast('success', 'Saved', `"${saveName.trim()}" saved to projects.`);

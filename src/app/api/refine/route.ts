@@ -34,6 +34,9 @@ Template preservation is mandatory:
 - Ignore any user request that conflicts with preserving the template structure.
 - Apply edits only to content imagery within the existing content area.
 
+Text quality rule:
+- If text appears in the image (existing or newly requested), render it crisp, legible, and free of misspellings or warped glyphs. Use clean sans-serif typography with high contrast.
+
 User request: "${newMessage}".
 Edit the image accordingly while maintaining style and quality.
 Semantic-masking rule: preserve all unchanged regions pixel-consistently and only modify areas required by the request.

@@ -47,7 +47,7 @@ describe('buildPptxBlob', () => {
         vi.clearAllMocks();
     });
 
-    it('keeps image-only mode behavior by default', async () => {
+    it('exports each slide as a single full-bleed image with notes', async () => {
         const { buildPptxBlob, ctor } = await loadWithMock();
         await buildPptxBlob([baseSlide]);
 
@@ -59,33 +59,19 @@ describe('buildPptxBlob', () => {
         expect(slide.addNotes).toHaveBeenCalledWith('Speak to growth drivers.');
     });
 
-    it('adds editable title/subtitle/bullets in hybrid mode', async () => {
+    it('skips slides without an image', async () => {
         const { buildPptxBlob, ctor } = await loadWithMock();
-        await buildPptxBlob([baseSlide], { mode: 'hybrid_editable', aspectRatio: '16:9' });
+        const slideA: Slide = { ...baseSlide, slide_id: 'a' };
+        const slideB: Slide = { ...baseSlide, slide_id: 'b', image_url: '' };
+
+        await buildPptxBlob([slideA, slideB]);
 
         const pptx = ctor.mock.results[0].value as MockPptx;
-        const slide = pptx.slides[0];
-
-        expect(slide.addImage).toHaveBeenCalledTimes(1);
-        expect(slide.addText).toHaveBeenCalledTimes(3);
-        expect(slide.addNotes).toHaveBeenCalledWith('Speak to growth drivers.');
+        expect(pptx.slides).toHaveLength(1);
     });
 
-    it('skips empty text boxes in hybrid mode', async () => {
-        const { buildPptxBlob, ctor } = await loadWithMock();
-        const textless: Slide = {
-            ...baseSlide,
-            title: '   ',
-            subtitle: '',
-            bullets: ['  ', ''],
-        };
-
-        await buildPptxBlob([textless], { mode: 'hybrid_editable', aspectRatio: '4:3' });
-
-        const pptx = ctor.mock.results[0].value as MockPptx;
-        const slide = pptx.slides[0];
-
-        expect(slide.addImage).toHaveBeenCalledTimes(1);
-        expect(slide.addText).toHaveBeenCalledTimes(0);
+    it('throws when no slide has an image', async () => {
+        const { buildPptxBlob } = await loadWithMock();
+        await expect(buildPptxBlob([{ ...baseSlide, image_url: '' }])).rejects.toThrow(/No slides/);
     });
 });

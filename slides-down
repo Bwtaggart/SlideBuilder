@@ -3,7 +3,7 @@ set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "$0")" && pwd)"
 PID_FILE="$ROOT_DIR/.slidebuilder.pid"
-PORT="${PORT:-3000}"
+PORT="${PORT:-3030}"
 
 stopped=0
 

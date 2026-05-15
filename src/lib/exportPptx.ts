@@ -1,30 +1,23 @@
 import PptxGenJS from 'pptxgenjs';
-import {
-    getPptxDims,
-    getSlideTextLayout,
-    getTextStyles,
-    pctRectToPptxRect,
-} from './pptxLayout';
-import type { AspectRatio, PptxExportMode, Slide } from './types';
+import type { AspectRatio, Slide } from './types';
 
-type PptxTextTheme = {
-    fontFamily?: string;
+const PPTX_DIMS_BY_ASPECT_RATIO: Record<AspectRatio, { width: number; height: number; layout: string }> = {
+    '16:9': { width: 13.333, height: 7.5, layout: 'LAYOUT_WIDE' },
+    '4:3': { width: 10, height: 7.5, layout: 'LAYOUT_STANDARD' },
+    '9:16': { width: 5.625, height: 10, layout: 'CUSTOM' },
 };
 
 export interface BuildPptxOptions {
-    mode?: PptxExportMode;
     aspectRatio?: AspectRatio;
-    theme?: PptxTextTheme;
 }
 
 /**
- * Build a PPTX blob from slides. Does NOT trigger download.
- * Defaults to image-only mode for backward compatibility.
+ * Build a PPTX blob from slides. Each slide is exported as a single full-bleed image,
+ * with the slide's speaker notes attached. Does NOT trigger download.
  */
 export async function buildPptxBlob(slides: Slide[], options: BuildPptxOptions = {}): Promise<Blob> {
-    const mode: PptxExportMode = options.mode || 'image';
     const aspectRatio: AspectRatio = options.aspectRatio || '16:9';
-    const dims = getPptxDims(aspectRatio);
+    const dims = PPTX_DIMS_BY_ASPECT_RATIO[aspectRatio];
     const pptx = new PptxGenJS();
 
     pptx.title = 'AI Presentation';
@@ -43,22 +36,14 @@ export async function buildPptxBlob(slides: Slide[], options: BuildPptxOptions =
 
     for (const slide of slidesWithImages) {
         const pptxSlide = pptx.addSlide();
-
-        if (slide.image_url) {
-            pptxSlide.background = { data: slide.image_url };
-            pptxSlide.addImage({
-                data: slide.image_url,
-                x: 0,
-                y: 0,
-                w: '100%',
-                h: '100%',
-            });
-        }
-
-        if (mode === 'hybrid_editable') {
-            addHybridEditableText(pptxSlide, slide, aspectRatio, options.theme);
-        }
-
+        pptxSlide.background = { data: slide.image_url };
+        pptxSlide.addImage({
+            data: slide.image_url,
+            x: 0,
+            y: 0,
+            w: '100%',
+            h: '100%',
+        });
         if (slide.speaker_notes) {
             pptxSlide.addNotes(slide.speaker_notes);
         }
@@ -66,57 +51,4 @@ export async function buildPptxBlob(slides: Slide[], options: BuildPptxOptions =
 
     const output = await pptx.write({ outputType: 'blob' });
     return output as Blob;
-}
-
-function addHybridEditableText(
-    pptxSlide: {
-        addText: (text: string | Array<{ text: string; options?: Record<string, unknown> }>, opts: Record<string, unknown>) => void;
-    },
-    slide: Slide,
-    aspectRatio: AspectRatio,
-    theme?: PptxTextTheme,
-) {
-    const layout = getSlideTextLayout(aspectRatio);
-    const styles = getTextStyles(aspectRatio);
-    const dims = getPptxDims(aspectRatio);
-
-    const titleRect = pctRectToPptxRect(layout.title, dims.width, dims.height);
-    const subtitleRect = pctRectToPptxRect(layout.subtitle, dims.width, dims.height);
-    const bulletsRect = pctRectToPptxRect(layout.bullets, dims.width, dims.height);
-
-    if (slide.title.trim()) {
-        pptxSlide.addText(slide.title, {
-            ...titleRect,
-            ...styles.title,
-            fontFace: theme?.fontFamily,
-        });
-    }
-
-    if (slide.subtitle.trim()) {
-        pptxSlide.addText(slide.subtitle, {
-            ...subtitleRect,
-            ...styles.subtitle,
-            fontFace: theme?.fontFamily,
-        });
-    }
-
-    const cleanedBullets = slide.bullets.map((b) => b.trim()).filter(Boolean);
-    if (cleanedBullets.length > 0) {
-        const bulletRuns = cleanedBullets.map((bullet) => ({
-            text: bullet,
-            options: {
-                bullet: { indent: 18 },
-                breakLine: true,
-            },
-        }));
-
-        pptxSlide.addText(bulletRuns, {
-            ...bulletsRect,
-            ...styles.bullets,
-            fontFace: theme?.fontFamily,
-            fill: { color: '000000', transparency: 35 },
-            margin: 6,
-            breakLine: true,
-        });
-    }
 }

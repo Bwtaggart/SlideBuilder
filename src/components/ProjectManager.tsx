@@ -53,7 +53,6 @@ export default function ProjectManager({ onOpenProject }: Props) {
             templateImages: project.templateImages,
             selectedTemplate: project.selectedTemplate,
             slides: project.slides,
-            pptxExportMode: project.pptxExportMode || 'hybrid_editable',
             currentStep: project.selectedTemplate ? 3 : project.templateImages.length > 0 ? 2 : 1,
         });
         setActiveProjectId(project.id);
@@ -113,8 +112,6 @@ export default function ProjectManager({ onOpenProject }: Props) {
 
     const isAspectRatio = (v: unknown): v is SavedProject['aspectRatio'] =>
         v === '16:9' || v === '4:3' || v === '9:16';
-    const isExportMode = (v: unknown): v is NonNullable<SavedProject['pptxExportMode']> =>
-        v === 'image' || v === 'hybrid_editable';
 
     const normalizeProject = (value: unknown): SavedProject | null => {
         if (!value || typeof value !== 'object') return null;
@@ -139,7 +136,6 @@ export default function ProjectManager({ onOpenProject }: Props) {
         return {
             ...p,
             selectedTemplate: p.selectedTemplate || null,
-            pptxExportMode: isExportMode(p.pptxExportMode) ? p.pptxExportMode : 'hybrid_editable',
             templateImages: p.templateImages,
             slides: p.slides,
         } as SavedProject;

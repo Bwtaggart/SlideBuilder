@@ -47,7 +47,7 @@ npm ci
 npm run dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000).
+Open [http://localhost:3030](http://localhost:3030).
 
 ## Scripts
 
@@ -56,7 +56,7 @@ Open [http://localhost:3000](http://localhost:3000).
 - `npm run start`: run production server.
 - `npm run lint`: run ESLint.
 - `npm run slides-up`: start dev server in background with logs in `/tmp/slidebuilder.log`.
-- `npm run slides-down`: stop any process bound to port `3000`.
+- `npm run slides-down`: stop any process bound to port `3030`.
 - `npm run slides-logs`: tail background logs.
 
 ## Notes

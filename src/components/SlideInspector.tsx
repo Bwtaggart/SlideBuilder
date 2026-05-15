@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useCallback } from 'react';
-import { Sparkles, Type, List, MessageSquare, Loader2, Image as ImageIcon, Wand2, ShieldAlert } from 'lucide-react';
+import { Sparkles, MessageSquare, Loader2, Image as ImageIcon, Wand2, ShieldAlert } from 'lucide-react';
 import { usePresentationStore } from '@/store/presentationStore';
 import { useCostStore } from '@/store/costStore';
 import { useToast } from './Toast';
@@ -34,6 +34,7 @@ export default function SlideInspector() {
     const [isInpainting, setIsInpainting] = useState(false);
     const [variationCount, setVariationCount] = useState<1 | 2 | 3 | 4>(1);
     const [pendingMask, setPendingMask] = useState<BoundingBox | null>(null);
+
     const handleMaskComplete = useCallback((box: BoundingBox) => {
         setPendingMask(box);
     }, []);
@@ -47,10 +48,6 @@ export default function SlideInspector() {
         clearChat();
 
         try {
-            const finalTitle = slide.title.trim();
-            const finalSubtitle = slide.subtitle.trim();
-            const finalBullets = slide.bullets.map((b) => b.trim()).filter(Boolean);
-
             const imageRequests = Array.from({ length: variationCount }, (_, index) =>
                 fetch('/api/generate-slide', {
                     method: 'POST',
@@ -59,9 +56,6 @@ export default function SlideInspector() {
                         templateBase64: selectedTemplate.base64,
                         templateId: selectedTemplate.id,
                         slidePrompt: `${globalPrompt}. ${slide.local_prompt}`,
-                        title: finalTitle,
-                        subtitle: finalSubtitle,
-                        bullets: finalBullets,
                         aspectRatio,
                         negativePrompt,
                         variationIndex: index + 1,
@@ -77,7 +71,7 @@ export default function SlideInspector() {
                     ? fetch('/api/generate-notes', {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ slideConceptPrompt: `${slide.title}: ${slide.local_prompt}` }),
+                        body: JSON.stringify({ slideConceptPrompt: slide.local_prompt }),
                     })
                     : Promise.resolve(null),
             ]);
@@ -110,7 +104,7 @@ export default function SlideInspector() {
                 throw new Error(firstImageError || 'Image generation failed');
             }
 
-            const updates: Record<string, unknown> = {
+            const updates: Partial<Slide> = {
                 image_url: imagePayloads[0],
             };
             addCost('nano_banana_image', imagePayloads.length);
@@ -189,11 +183,6 @@ export default function SlideInspector() {
         }
     };
 
-    const handleBulletChange = (value: string) => {
-        const bullets = value.split('\n').filter(b => b.trim());
-        updateSlide(activeSlideIndex, { bullets });
-    };
-
     return (
         <div style={{ maxWidth: 1240, margin: '0 auto' }}>
             {/* ─── Input Section ─── */}
@@ -247,56 +236,8 @@ export default function SlideInspector() {
                             className="textarea-field"
                             value={slide.local_prompt}
                             onChange={(e) => updateSlide(activeSlideIndex, { local_prompt: e.target.value })}
-                            placeholder="e.g., Company overview slide showing growth metrics and team photo in a modern tech office setting"
-                            style={{ minHeight: 80 }}
-                        />
-                    </div>
-
-                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
-                        {/* Title */}
-                        <div>
-                            <label className="label" htmlFor="slide-title">
-                                <Type size={12} style={{ display: 'inline', marginRight: 4, verticalAlign: 'middle' }} />
-                                Slide Title
-                            </label>
-                            <input
-                                id="slide-title"
-                                className="input-field"
-                                value={slide.title}
-                                onChange={(e) => updateSlide(activeSlideIndex, { title: e.target.value })}
-                                placeholder="e.g., Our Mission"
-                            />
-                        </div>
-
-                        {/* Subtitle */}
-                        <div>
-                            <label className="label" htmlFor="slide-subtitle">
-                                <Type size={12} style={{ display: 'inline', marginRight: 4, verticalAlign: 'middle' }} />
-                                Sub Heading <span style={{ color: 'var(--color-text-muted)', fontWeight: 400, textTransform: 'none' }}>(optional)</span>
-                            </label>
-                            <input
-                                id="slide-subtitle"
-                                className="input-field"
-                                value={slide.subtitle}
-                                onChange={(e) => updateSlide(activeSlideIndex, { subtitle: e.target.value })}
-                                placeholder="e.g., Building a better future together"
-                            />
-                        </div>
-                    </div>
-
-                    {/* Bullets — full width */}
-                    <div>
-                        <label className="label" htmlFor="slide-bullets">
-                            <List size={12} style={{ display: 'inline', marginRight: 4, verticalAlign: 'middle' }} />
-                            Slide Bullets <span style={{ color: 'var(--color-text-muted)', fontWeight: 400, textTransform: 'none' }}>(one per line)</span>
-                        </label>
-                        <textarea
-                            id="slide-bullets"
-                            className="textarea-field"
-                            value={slide.bullets.join('\n')}
-                            onChange={(e) => handleBulletChange(e.target.value)}
-                            placeholder="• Revenue up 40%&#10;• 500+ clients&#10;• Global presence"
-                            style={{ minHeight: 60, fontFamily: 'var(--font-sans)' }}
+                            placeholder="Describe the slide. Include any title or wording you want rendered into the image, e.g.: Title slide for Project Optimus — heading 'Project Optimus' centered, subtitle 'Year 1 Execution Plan' below, with an isometric edge-compute illustration."
+                            style={{ minHeight: 100 }}
                         />
                     </div>
 
@@ -319,7 +260,7 @@ export default function SlideInspector() {
                             </select>
                         </div>
                         <div style={{ color: 'var(--color-text-muted)', fontSize: 12, paddingBottom: 10 }}>
-                            Additional variations are inserted after this slide.
+                            Use the Inpaint tool below the preview to fix or change wording after generation.
                         </div>
                     </div>
 

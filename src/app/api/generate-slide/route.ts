@@ -9,9 +9,6 @@ export async function POST(req: NextRequest) {
             templateBase64,
             templateId,
             slidePrompt,
-            title,
-            subtitle,
-            bullets,
             aspectRatio,
             negativePrompt,
             variationIndex,
@@ -24,23 +21,24 @@ export async function POST(req: NextRequest) {
             return NextResponse.json({ error: 'A slide prompt and template choice are required' }, { status: 400 });
         }
 
-        const normalizedTitle = typeof title === 'string' ? title.trim() : '';
-        const normalizedSubtitle = typeof subtitle === 'string' ? subtitle.trim() : '';
-        const normalizedBullets = Array.isArray(bullets)
-            ? bullets.map((b: unknown) => (typeof b === 'string' ? b.trim() : '')).filter(Boolean)
-            : [];
-
-        const quoteForPrompt = (text: string): string => `"${text.replace(/"/g, '\\"')}"`;
-
+        // Strong defaults that prioritize legible, well-formed typography on every slide.
+        // These are appended to whatever the user provided, so a user-supplied negative
+        // prompt is preserved AND we always discourage the most common Gemini text failures.
         const defaultLegibilityNegatives = [
             'blurry text',
-            'gibberish',
+            'gibberish text',
             'misspelled words',
+            'invented words',
             'overlapping letters',
             'distorted characters',
-            'double letters',
+            'doubled or duplicated letters',
             'warped typography',
             'tiny unreadable text',
+            'low contrast text',
+            'cut-off letters',
+            'text that runs off the edge',
+            'decorative or script fonts',
+            'mismatched character heights',
         ];
 
         const mergedNegativePrompt = [negativePrompt?.trim(), ...defaultLegibilityNegatives]
@@ -48,45 +46,29 @@ export async function POST(req: NextRequest) {
             .join(', ');
 
         const buildPrompt = (strictTextMode: boolean): string => {
-            const hasStructuredText = Boolean(normalizedTitle || normalizedSubtitle || normalizedBullets.length > 0);
-
-            let typographyBlock = '';
-            if (normalizedTitle) {
-                typographyBlock += `\n- Title text in English (exact): ${quoteForPrompt(normalizedTitle)}`;
-            }
-            if (normalizedSubtitle) {
-                typographyBlock += `\n- Subtitle text in English (exact): ${quoteForPrompt(normalizedSubtitle)}`;
-            }
-            if (normalizedBullets.length > 0) {
-                typographyBlock += '\n- Bullet text in English (exact):';
-                typographyBlock += normalizedBullets.map((b: string, i: number) => `\n  ${i + 1}. ${quoteForPrompt(b)}`).join('');
-            }
-
-            if (!hasStructuredText) {
-                typographyBlock += '\n- If text appears, keep it crisp, readable, and free of spelling errors.';
-            }
-
             let typographyRules = `
-Typography-first requirements (highest priority):
-- Render all specified text verbatim with no substitutions, no paraphrasing, and no missing characters.
-- Use clean sans-serif typography, high contrast, and consistent baseline alignment.
-- Place text in uncluttered regions with strong separation from busy graphics.
-- Prioritize readability over artistic effects.
-- Do not blur, warp, stylize, curve, stack, overlap, or distort characters.
-- Keep text horizontal and clearly legible at presentation viewing distance.
-${typographyBlock}`.trim();
+Typography requirements (highest priority — text quality is critical):
+- Decide what text belongs on this slide based on the content request and global rules. Render it directly into the image.
+- Use a clean, modern sans-serif typeface (e.g. resembling Inter, Helvetica, or Söhne). No decorative, script, or display fonts.
+- Spelling must be 100% accurate. Every word must be a real, correctly-spelled English word — no invented or partial letterforms.
+- Letterforms must be uniform: consistent x-height, baseline, weight, and spacing within each text block. No doubled, warped, broken, or fused glyphs.
+- Maintain strong contrast between text and background (light text on dark backgrounds, or dark text on light). If the area behind text is busy, add a subtle solid or gradient backing so every character stays legible.
+- Keep all text horizontal and fully inside the slide bounds. Never let letters touch or cross the slide edge.
+- Establish a clear hierarchy: the main heading should be the largest and most prominent text element; supporting text smaller and visually secondary.
+- Prefer concise wording. If the concept implies a list, render at most 3–5 short bullets. If it's a hero/title slide, a single headline plus a short subtitle is sufficient.
+- Place text in uncluttered regions of the composition with comfortable padding around each text block.`.trim();
 
             if (strictTextMode) {
-                typographyRules += '\n- STRICT RETRY MODE: simplify nearby graphics around text and enlarge text blocks to maximize legibility.';
+                typographyRules += '\n- STRICT RETRY MODE: simplify the area around text, enlarge the text blocks, and double-check spelling letter-by-letter. Prioritize legibility over visual flourish.';
             }
 
             const variationInstruction = totalVariations > 1
                 ? `
 Variation directive:
 - Generate variation ${variationIndex} of ${totalVariations}.
-- Keep the same slide message, required text, and overall style.
-- Vary composition, imagery emphasis, or supporting visual treatment enough that this version feels distinct from the other variations.
-- Do not change the factual content or the required text.`
+- Keep the same slide message and overall style.
+- Vary composition, imagery emphasis, or visual treatment so this version feels distinct from the others.
+- Do not change the factual content or meaning.`
                 : '';
 
             const parsedZones = Array.isArray(reservedZones) ? reservedZones : [];
@@ -163,7 +145,6 @@ Negative constraints: ${mergedNegativePrompt}.`;
                 model: IMAGE_MODEL_ID,
                 contents: prompt,
                 config: {
-                    // Prefer image-only response payload for render consistency.
                     responseModalities: ['Image'],
                     imageConfig: {
                         aspectRatio: aspectRatio || '16:9',
