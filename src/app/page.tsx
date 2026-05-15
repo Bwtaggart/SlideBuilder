@@ -1,12 +1,14 @@
 'use client';
 
 import { useState, useEffect, useRef, useCallback } from 'react';
+import { useSession } from 'next-auth/react';
 import Navbar from '@/components/Navbar';
 import StepWizard from '@/components/StepWizard';
 import ProjectManager from '@/components/ProjectManager';
 import { ToastProvider } from '@/components/Toast';
 import { usePresentationStore } from '@/store/presentationStore';
 import { useProjectStore } from '@/store/projectStore';
+import { setIdbUserId } from '@/lib/idb';
 
 /**
  * Auto-save hook: persists the current presentation state to IndexedDB
@@ -69,7 +71,14 @@ function useAutoSave() {
 }
 
 export default function Home() {
+  const { data: session } = useSession();
   const [isInProject, setIsInProject] = useState(false);
+
+  useEffect(() => {
+    if (session?.user?.id) {
+      setIdbUserId(session.user.id);
+    }
+  }, [session?.user?.id]);
 
   // Auto-save whenever presentation state changes (debounced)
   useAutoSave();

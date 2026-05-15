@@ -1,8 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getGeminiClient, IMAGE_MODEL_ID } from '@/lib/gemini';
 import { extractGeminiErrorMessage } from '@/lib/geminiError';
+import { requireAuth } from '@/lib/requireAuth';
 
 export async function POST(req: NextRequest) {
+    const { error } = await requireAuth();
+    if (error) return error;
     try {
         const { currentImageBase64, chatHistory, newMessage } = await req.json();
 

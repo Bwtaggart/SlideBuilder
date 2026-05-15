@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getGeminiClient, TEXT_MODEL_ID } from '@/lib/gemini';
+import { requireAuth } from '@/lib/requireAuth';
 
 /**
  * POST /api/analyze-template
@@ -7,6 +8,8 @@ import { getGeminiClient, TEXT_MODEL_ID } from '@/lib/gemini';
  * and returns auto-generated prompts describing the slide's style.
  */
 export async function POST(req: NextRequest) {
+    const { error } = await requireAuth();
+    if (error) return error;
     try {
         const { imageBase64, mimeType } = await req.json();
 

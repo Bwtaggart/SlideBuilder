@@ -1,14 +1,26 @@
 /**
  * IndexedDB storage helper for SlideBuilder projects.
  * Uses IndexedDB instead of localStorage to handle large base64 image data.
+ * Database is namespaced per user for multi-user isolation.
  */
 import type { ServiceType } from './types';
 
-const DB_NAME = 'slidebuilder';
+const DB_PREFIX = 'slidebuilder';
 const DB_VERSION = 3;
 const PROJECT_STORE = 'projects';
 const COST_EVENTS_STORE = 'cost_events';
 const TEMPLATE_STORE = 'templates';
+
+let currentUserId: string | null = null;
+
+export function setIdbUserId(userId: string) {
+    currentUserId = userId;
+}
+
+function getDbName(): string {
+    if (!currentUserId) return DB_PREFIX;
+    return `${DB_PREFIX}-${currentUserId}`;
+}
 
 export interface CostEventRecord {
     id: string;
@@ -20,7 +32,7 @@ export interface CostEventRecord {
 
 function openDB(): Promise<IDBDatabase> {
     return new Promise((resolve, reject) => {
-        const request = indexedDB.open(DB_NAME, DB_VERSION);
+        const request = indexedDB.open(getDbName(), DB_VERSION);
         request.onerror = () => reject(request.error);
         request.onsuccess = () => {
             const db = request.result;

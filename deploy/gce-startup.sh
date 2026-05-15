@@ -23,9 +23,12 @@ if ! command -v caddy &>/dev/null; then
   apt-get update && apt-get install -y caddy
 fi
 
-# Pull project ID and domain from instance metadata
+# Pull config from instance metadata
 PROJECT_ID=$(curl -sf "http://metadata.google.internal/computeMetadata/v1/project/project-id" -H "Metadata-Flavor: Google")
 DOMAIN=$(curl -sf "http://metadata.google.internal/computeMetadata/v1/instance/attributes/domain" -H "Metadata-Flavor: Google" || echo "")
+GOOGLE_CLIENT_ID=$(curl -sf "http://metadata.google.internal/computeMetadata/v1/instance/attributes/google-client-id" -H "Metadata-Flavor: Google" || echo "")
+GOOGLE_CLIENT_SECRET=$(curl -sf "http://metadata.google.internal/computeMetadata/v1/instance/attributes/google-client-secret" -H "Metadata-Flavor: Google" || echo "")
+NEXTAUTH_SECRET=$(curl -sf "http://metadata.google.internal/computeMetadata/v1/instance/attributes/nextauth-secret" -H "Metadata-Flavor: Google" || openssl rand -base64 32)
 
 # Clone or update repo
 APP_DIR=/opt/slidebuilder
@@ -36,11 +39,20 @@ else
 fi
 cd "$APP_DIR"
 
-# Write env file — no API key needed, ADC handles auth
+# Write env file — ADC handles Gemini auth, OAuth handles user auth
+NEXTAUTH_URL="http://${DOMAIN:-$(curl -sf http://metadata.google.internal/computeMetadata/v1/instance/network-interfaces/0/access-configs/0/external-ip -H 'Metadata-Flavor: Google')}"
+if [ -n "$DOMAIN" ]; then
+  NEXTAUTH_URL="https://${DOMAIN}"
+fi
+
 cat > .env.production <<EOF
 GOOGLE_CLOUD_PROJECT=${PROJECT_ID}
 GOOGLE_CLOUD_LOCATION=us-central1
 TEXT_MODEL_ID=gemini-2.5-flash
+GOOGLE_CLIENT_ID=${GOOGLE_CLIENT_ID}
+GOOGLE_CLIENT_SECRET=${GOOGLE_CLIENT_SECRET}
+NEXTAUTH_SECRET=${NEXTAUTH_SECRET}
+NEXTAUTH_URL=${NEXTAUTH_URL}
 EOF
 
 # Build and run container
