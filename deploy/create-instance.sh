@@ -4,28 +4,20 @@ set -euo pipefail
 # Create a GCE instance for SlideBuilder.
 # Usage: ./deploy/create-instance.sh [DOMAIN]
 #
+# Auth: Uses ADC via the VM's default service account.
+# The service account needs the "Vertex AI User" role.
+#
 # Prerequisites:
 #   - gcloud CLI authenticated with your project
-#   - GEMINI_API_KEY env var set (or it reads from .env.local)
 #
 # Examples:
-#   GEMINI_API_KEY=AIza... ./deploy/create-instance.sh slides.example.com
+#   ./deploy/create-instance.sh slides.example.com
 #   ./deploy/create-instance.sh   # no domain = HTTP only on port 80
 
 DOMAIN="${1:-}"
 INSTANCE_NAME="slidebuilder"
 ZONE="us-central1-a"
 MACHINE_TYPE="e2-small"
-
-# Resolve API key
-if [ -z "${GEMINI_API_KEY:-}" ] && [ -f .env.local ]; then
-  GEMINI_API_KEY=$(grep GEMINI_API_KEY .env.local | cut -d= -f2)
-fi
-
-if [ -z "${GEMINI_API_KEY:-}" ]; then
-  echo "Error: Set GEMINI_API_KEY env var or have it in .env.local"
-  exit 1
-fi
 
 echo "Creating GCE instance: $INSTANCE_NAME ($MACHINE_TYPE in $ZONE)"
 [ -n "$DOMAIN" ] && echo "Domain: $DOMAIN (Caddy will auto-provision TLS)"
@@ -37,7 +29,8 @@ gcloud compute instances create "$INSTANCE_NAME" \
   --image-project=debian-cloud \
   --boot-disk-size=20GB \
   --tags=http-server,https-server \
-  --metadata="gemini-api-key=${GEMINI_API_KEY},domain=${DOMAIN}" \
+  --scopes=cloud-platform \
+  --metadata="domain=${DOMAIN}" \
   --metadata-from-file=startup-script=deploy/gce-startup.sh
 
 # Ensure firewall rules exist

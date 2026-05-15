@@ -3,6 +3,9 @@ set -euo pipefail
 
 # GCE startup script — runs once on first boot to set up SlideBuilder.
 # Attach this via --metadata-from-file startup-script=deploy/gce-startup.sh
+#
+# Auth: uses Application Default Credentials (ADC) via the VM's service account.
+# Make sure the service account has the Vertex AI User role.
 
 export DEBIAN_FRONTEND=noninteractive
 
@@ -20,8 +23,8 @@ if ! command -v caddy &>/dev/null; then
   apt-get update && apt-get install -y caddy
 fi
 
-# Pull env from instance metadata
-GEMINI_API_KEY=$(curl -sf "http://metadata.google.internal/computeMetadata/v1/instance/attributes/gemini-api-key" -H "Metadata-Flavor: Google" || echo "")
+# Pull project ID and domain from instance metadata
+PROJECT_ID=$(curl -sf "http://metadata.google.internal/computeMetadata/v1/project/project-id" -H "Metadata-Flavor: Google")
 DOMAIN=$(curl -sf "http://metadata.google.internal/computeMetadata/v1/instance/attributes/domain" -H "Metadata-Flavor: Google" || echo "")
 
 # Clone or update repo
@@ -33,9 +36,10 @@ else
 fi
 cd "$APP_DIR"
 
-# Write env file
+# Write env file — no API key needed, ADC handles auth
 cat > .env.production <<EOF
-GEMINI_API_KEY=${GEMINI_API_KEY}
+GOOGLE_CLOUD_PROJECT=${PROJECT_ID}
+GOOGLE_CLOUD_LOCATION=us-central1
 TEXT_MODEL_ID=gemini-2.5-flash
 EOF
 

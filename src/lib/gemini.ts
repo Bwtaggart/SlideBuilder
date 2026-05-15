@@ -6,14 +6,20 @@ export const TEXT_MODEL_ID = process.env.TEXT_MODEL_ID || 'gemini-2.5-flash';
 let geminiClient: GoogleGenAI | null = null;
 
 export function getGeminiClient(): GoogleGenAI {
-    const apiKey = process.env.GEMINI_API_KEY;
-    if (!apiKey) {
-        throw new Error('GEMINI_API_KEY is not configured');
-    }
-
     if (!geminiClient) {
-        geminiClient = new GoogleGenAI({ apiKey });
+        const apiKey = process.env.GEMINI_API_KEY;
+        if (apiKey) {
+            geminiClient = new GoogleGenAI({ apiKey });
+        } else {
+            const project = process.env.GOOGLE_CLOUD_PROJECT || process.env.GCLOUD_PROJECT;
+            const location = process.env.GOOGLE_CLOUD_LOCATION || 'us-central1';
+            if (!project) {
+                throw new Error(
+                    'Set GEMINI_API_KEY for API key auth, or GOOGLE_CLOUD_PROJECT for ADC/Vertex AI'
+                );
+            }
+            geminiClient = new GoogleGenAI({ vertexai: true, project, location });
+        }
     }
-
     return geminiClient;
 }
