@@ -264,7 +264,7 @@ export default function AtelierGallery({ onBack, onPick }: AtelierGalleryProps) 
               className="atl-btn"
               style={{
                 justifyContent: 'flex-start',
-                background: filter === t.id ? '#fff' : 'transparent',
+                background: filter === t.id ? 'var(--color-bg-hover)' : 'transparent',
                 borderColor: filter === t.id ? 'var(--color-accent)' : 'transparent',
                 color: filter === t.id ? 'var(--color-accent)' : 'var(--color-text-primary)',
               }}
@@ -296,8 +296,8 @@ export default function AtelierGallery({ onBack, onPick }: AtelierGalleryProps) 
                   style={{
                     width: 14,
                     height: 14,
-                    border: '2px solid rgba(250,248,244,.3)',
-                    borderTopColor: '#faf8f4',
+                    border: '2px solid rgba(7,11,20,.3)',
+                    borderTopColor: '#070b14',
                     borderRadius: '50%',
                     animation: 'atl-spin 0.9s linear infinite',
                   }}
@@ -450,7 +450,7 @@ export default function AtelierGallery({ onBack, onPick }: AtelierGalleryProps) 
                               height: 20,
                               borderRadius: '50%',
                               background: 'var(--color-accent)',
-                              color: '#faf8f4',
+                              color: '#070b14',
                               display: 'flex',
                               alignItems: 'center',
                               justifyContent: 'center',

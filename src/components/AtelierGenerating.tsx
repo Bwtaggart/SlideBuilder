@@ -306,7 +306,7 @@ export default function AtelierGenerating({
                 style={{
                   position: 'absolute',
                   inset: 0,
-                  background: 'rgba(250,248,244,.86)',
+                  background: 'rgba(7,11,20,.86)',
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',

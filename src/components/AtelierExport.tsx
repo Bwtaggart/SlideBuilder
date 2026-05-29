@@ -131,7 +131,7 @@ export default function AtelierExport({ projectName, onClose, onExport }: Atelie
                     background:
                       fmt === f.id
                         ? 'color-mix(in srgb, var(--color-accent) 5%, transparent)'
-                        : '#fff',
+                        : 'var(--color-bg-surface)',
                   }}
                 >
                   <div
@@ -185,7 +185,7 @@ export default function AtelierExport({ projectName, onClose, onExport }: Atelie
                       background:
                         mode === m.id
                           ? 'color-mix(in srgb, var(--color-accent) 5%, transparent)'
-                          : '#fff',
+                          : 'var(--color-bg-surface)',
                       display: 'flex',
                       alignItems: 'center',
                       gap: 12,

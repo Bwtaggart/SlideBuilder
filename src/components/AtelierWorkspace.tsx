@@ -582,7 +582,7 @@ export default function AtelierWorkspace({
                     setEditMode(!editMode);
                     if (editMode) { setSelBox(null); setEditPrompt(''); }
                   }}
-                  style={editMode ? { background: 'var(--color-accent)', color: '#fff', borderColor: 'var(--color-accent)' } : undefined}
+                  style={editMode ? { background: 'var(--color-accent)', color: '#070b14', borderColor: 'var(--color-accent)' } : undefined}
                 >
                   <Pencil size={12} /> Slide Edit
                 </button>
@@ -776,9 +776,9 @@ export default function AtelierWorkspace({
             top: 55,
             bottom: 0,
             width: 380,
-            background: '#fff',
+            background: 'var(--color-bg-surface)',
             borderLeft: '1px solid var(--color-border-default)',
-            boxShadow: '-20px 0 40px rgba(0,0,0,.05)',
+            boxShadow: '-20px 0 40px rgba(0,0,0,.4)',
             zIndex: 20,
             display: 'flex',
             flexDirection: 'column',
@@ -832,7 +832,7 @@ export default function AtelierWorkspace({
                       borderRadius: 14,
                       background:
                         m.role === 'user' ? 'var(--color-accent)' : 'var(--color-bg-sidebar)',
-                      color: m.role === 'user' ? '#faf8f4' : 'var(--color-text-primary)',
+                      color: m.role === 'user' ? '#070b14' : 'var(--color-text-primary)',
                       fontSize: 13,
                       lineHeight: 1.5,
                     }}
@@ -930,7 +930,7 @@ export default function AtelierWorkspace({
                       ...(ar === aspectRatio
                         ? {
                             background: 'var(--color-accent)',
-                            color: '#fff',
+                            color: '#070b14',
                             borderColor: 'var(--color-accent)',
                           }
                         : {}),
