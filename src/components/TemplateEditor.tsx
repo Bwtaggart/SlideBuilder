@@ -221,9 +221,10 @@ export default function TemplateEditor({ templateBase64, onSave, onCancel }: Tem
           gap: 8,
           marginBottom: 12,
           padding: '10px 16px',
-          background: '#fff',
+          background: 'var(--color-bg-surface)',
+          border: '1px solid var(--color-border-default)',
           borderRadius: 10,
-          boxShadow: '0 4px 20px rgba(0,0,0,0.15)',
+          boxShadow: '0 4px 20px rgba(0,0,0,0.45)',
         }}
         onClick={(e) => e.stopPropagation()}
       >
@@ -313,7 +314,7 @@ export default function TemplateEditor({ templateBase64, onSave, onCancel }: Tem
                       left: '50%',
                       transform: 'translateX(-50%)',
                       background: 'var(--color-accent)',
-                      color: '#fff',
+                      color: '#070b14',
                       borderRadius: 4,
                       padding: '2px 6px',
                       fontSize: 10,
