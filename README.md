@@ -4,13 +4,17 @@ SlideBuilder is a local-first slide creation app powered by Gemini image and tex
 
 ## Features
 
-- Style-first workflow: define global design rules or upload a reference slide.
-- Template generation and selection.
-- Per-slide concept prompts, title/subtitle/bullets.
-- AI image refinement via chat and inpaint region editing.
-- Speaker notes generation.
-- Local project persistence in IndexedDB.
-- Export to PPTX and PDF.
+- **Style-first workflow**: define global design rules, or upload a reference slide and let Gemini learn its style.
+- **Direct template upload**: drop in a background image and use it as-is (no AI analysis), or generate template variations from a prompt.
+- **Template generation and selection**, including a blank-canvas option.
+- **Per-slide concept prompts** with title/subtitle/bullets.
+- **Slide reordering** in the sidebar via drag-and-drop or up/down buttons.
+- **First-slide style carry-forward**: the rendered first slide is passed as a locked style reference so later slides stay visually consistent across the deck (toggleable, on by default).
+- **Second-pass QA check**: after a slide renders, Gemini vision inspects it for spelling, legibility, and instruction-adherence issues and flags them (toggleable, on by default — flags only, never auto-edits).
+- **AI image refinement** via chat and inpaint region editing.
+- **Speaker notes generation.**
+- **Local project persistence** in IndexedDB.
+- **Export to PPTX and PDF.**
 
 ## Requirements
 
@@ -26,16 +30,30 @@ Create a `.env.local` file from `.env.example`:
 cp .env.example .env.local
 ```
 
-Required:
+### AI access (required — pick one)
 
-- `GEMINI_API_KEY`: used by all AI API routes.
+- `GEMINI_API_KEY`: Gemini API key. Used by all AI API routes. Simplest for local dev.
+- _or_ `GOOGLE_CLOUD_PROJECT` (+ optional `GOOGLE_CLOUD_LOCATION`, default `us-central1`): use Vertex AI via Application Default Credentials instead of an API key.
 
-Optional (model overrides):
+### Authentication
 
-- `IMAGE_MODEL_ID`: image generation model (default: `gemini-3-pro-image-preview`).
-- `TEXT_MODEL_ID`: text/intelligence model (default: `gemini-2.5-flash`).
+The app is gated behind Google OAuth by default. For local development you can skip sign-in entirely:
 
-Optional (future usage/cost storage):
+- `SKIP_AUTH=true`: bypass Google OAuth (login page and per-route auth checks). **Local dev only** — do not set this in production.
+
+When `SKIP_AUTH` is not set, configure OAuth:
+
+- `GOOGLE_CLIENT_ID`
+- `GOOGLE_CLIENT_SECRET`
+- `NEXTAUTH_SECRET` (generate with `openssl rand -base64 32`)
+- `NEXTAUTH_URL` (e.g. `http://localhost:4040`)
+
+### Model overrides (optional)
+
+- `IMAGE_MODEL_ID`: image generation model (default: `gemini-3-pro-image-preview`). Used by slide/template generation, inpaint, and refine.
+- `TEXT_MODEL_ID`: text/vision model (default: `gemini-2.5-flash`). Used by template analysis, the QA check, speaker notes, and prompt strengthening.
+
+### Future usage/cost storage (optional)
 
 - `NEXT_PUBLIC_SUPABASE_URL`
 - `NEXT_PUBLIC_SUPABASE_ANON_KEY`
@@ -47,19 +65,32 @@ npm ci
 npm run dev
 ```
 
-Open [http://localhost:3030](http://localhost:3030).
+Open [http://localhost:4040](http://localhost:4040).
+
+For a quick local run without setting up OAuth, put `SKIP_AUTH=true` and `GEMINI_API_KEY=...` in `.env.local` first.
 
 ## Scripts
 
-- `npm run dev`: start Next.js development server.
+- `npm run dev`: start Next.js development server on port `4040`.
 - `npm run build`: production build.
-- `npm run start`: run production server.
+- `npm run start`: run production server on port `4040`.
 - `npm run lint`: run ESLint.
-- `npm run slides-up`: start dev server in background with logs in `/tmp/slidebuilder.log`.
-- `npm run slides-down`: stop any process bound to port `3030`.
+- `npm run test`: run the Vitest test suite.
+- `npm run slides-up`: start dev server in the background with logs in `/tmp/slidebuilder.log` (honors `PORT`, default `3030`).
+- `npm run slides-down`: stop the background process bound to that port.
 - `npm run slides-logs`: tail background logs.
+
+## Models
+
+| Purpose | Default model | Routes |
+| --- | --- | --- |
+| Image | `gemini-3-pro-image-preview` | `generate-slide`, `generate-templates`, `inpaint`, `refine` |
+| Text / vision | `gemini-2.5-flash` | `analyze-template`, `qa-check`, `generate-notes`, `strengthen-prompt` |
+
+Both are overridable via `IMAGE_MODEL_ID` / `TEXT_MODEL_ID`.
 
 ## Notes
 
 - Projects and generated slide data are stored in-browser (IndexedDB), not on a backend database.
-- If `GEMINI_API_KEY` is missing, API routes will return an error at request time.
+- If `GEMINI_API_KEY` (or a Vertex AI project) is missing, API routes will return an error at request time.
+- The Auto QA check adds one text/vision call per generated image (a fraction of a cent each). It can be toggled off per slide in the builder.
