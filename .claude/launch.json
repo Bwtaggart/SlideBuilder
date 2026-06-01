@@ -1,0 +1,13 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "dev",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["run", "dev"],
+      "env": { "SKIP_AUTH": "true" },
+      "port": 4040,
+      "autoPort": false
+    }
+  ]
+}

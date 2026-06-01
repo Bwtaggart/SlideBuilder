@@ -36,6 +36,9 @@ export interface Slide {
   bullets: string[];
   image_url: string;
   speaker_notes: string;
+  // Optional QA results from the post-generation second-pass check.
+  qa_passed?: boolean;
+  qa_issues?: string[];
 }
 
 // ─── App Types ─────────────────────────────────────────────────────

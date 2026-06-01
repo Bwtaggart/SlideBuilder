@@ -176,6 +176,158 @@ body::after {
   animation: atl-shimmer 1.6s linear infinite; border-radius: 6px;
 }
 
+/* ─── Component Classes (used by GlobalRulesStep, SlideInspector, SlideBuilder) ── */
+
+.glass-panel {
+  background: var(--color-bg-surface);
+  border: 1px solid var(--color-border-default);
+  border-radius: 10px;
+}
+
+.label {
+  font-size: 11px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--color-text-secondary);
+  font-weight: 600;
+  margin-bottom: 8px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.textarea-field {
+  background: var(--color-bg-sidebar);
+  border: 1px solid var(--color-border-input);
+  color: var(--color-text-primary);
+  border-radius: 8px;
+  padding: 12px 14px;
+  font-size: 13px;
+  line-height: 1.6;
+  outline: none;
+  width: 100%;
+  font-family: inherit;
+  resize: vertical;
+  transition: border-color 0.15s;
+}
+.textarea-field:focus {
+  border-color: var(--color-accent);
+  box-shadow: 0 0 0 3px rgba(0, 212, 255, 0.1);
+}
+.textarea-field::placeholder {
+  color: var(--color-text-placeholder);
+}
+
+.input-field {
+  background: var(--color-bg-sidebar);
+  border: 1px solid var(--color-border-input);
+  color: var(--color-text-primary);
+  border-radius: 8px;
+  padding: 10px 12px;
+  font-size: 13px;
+  outline: none;
+  width: 100%;
+  font-family: inherit;
+  transition: border-color 0.15s;
+}
+.input-field:focus {
+  border-color: var(--color-accent);
+  box-shadow: 0 0 0 3px rgba(0, 212, 255, 0.1);
+}
+.input-field::placeholder {
+  color: var(--color-text-placeholder);
+}
+
+.btn-primary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 12px 20px;
+  border-radius: 8px;
+  border: 1px solid transparent;
+  background: linear-gradient(135deg, var(--color-accent), #3b82f6);
+  color: #070b14;
+  font-size: 14px;
+  font-weight: 600;
+  font-family: inherit;
+  cursor: pointer;
+  transition: all 0.15s;
+  white-space: nowrap;
+}
+.btn-primary:hover {
+  box-shadow: 0 0 20px rgba(0, 212, 255, 0.3), 0 4px 16px rgba(0, 0, 0, 0.4);
+  transform: translateY(-1px);
+}
+.btn-primary:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  transform: none;
+  box-shadow: none;
+}
+
+.btn-secondary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 12px 20px;
+  border-radius: 8px;
+  border: 1px solid var(--color-border-button);
+  background: var(--color-bg-surface);
+  color: var(--color-text-primary);
+  font-size: 14px;
+  font-weight: 500;
+  font-family: inherit;
+  cursor: pointer;
+  transition: all 0.15s;
+  white-space: nowrap;
+}
+.btn-secondary:hover {
+  background: var(--color-bg-hover);
+  border-color: var(--color-accent);
+  color: var(--color-accent);
+}
+.btn-secondary:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.glow-text {
+  color: var(--color-accent);
+  text-shadow: 0 0 20px rgba(0, 212, 255, 0.3);
+}
+
+.spinner {
+  width: 20px;
+  height: 20px;
+  border: 2px solid rgba(0, 212, 255, 0.2);
+  border-top-color: var(--color-accent);
+  border-radius: 50%;
+  animation: atl-spin 0.8s linear infinite;
+}
+
+/* ─── Extra Variables ─────────────────────────────────────────── */
+
+:root {
+  --color-bg-primary: #070b14;
+  --color-bg-secondary: #0c1220;
+  --color-bg-card: #0f1729;
+  --color-border-subtle: #152038;
+  --color-text-muted: #3d5278;
+  --color-accent-cyan: #00d4ff;
+  --color-accent-purple: #a855f7;
+  --color-accent-blue: #3b82f6;
+  --color-accent-red: #ef4444;
+  --color-accent-green: #22c55e;
+}
+
+/* ─── Animations ─────────────────────────────────────────────── */
+
+@keyframes fade-in { from { opacity: 0; } to { opacity: 1; } }
+@keyframes slide-up { from { transform: translateY(10px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+@keyframes spin { to { transform: rotate(360deg); } }
+
 /* ─── Toast ────────────────────────────────────────────────────── */
 
 .toast {

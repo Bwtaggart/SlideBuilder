@@ -35,6 +35,7 @@ export default function AtelierGallery({ onBack, onPick }: AtelierGalleryProps) 
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [isCustomizing, setIsCustomizing] = useState(false);
   const refImageInputRef = useRef<HTMLInputElement>(null);
+  const directUploadInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     if (templateImages.length > 0) return;
@@ -145,6 +146,27 @@ export default function AtelierGallery({ onBack, onPick }: AtelierGalleryProps) 
     }
   };
 
+  const handleDirectUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    e.target.value = '';
+    const base64 = await new Promise<string>((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => {
+        const result = reader.result as string;
+        const idx = result.indexOf(',');
+        resolve(idx >= 0 ? result.substring(idx + 1) : result);
+      };
+      reader.onerror = () => reject(reader.error);
+      reader.readAsDataURL(file);
+    });
+    const id = `upload-${Date.now()}`;
+    const newTemplate: TemplateImage = { id, base64 };
+    setTemplateImages([...templateImages, newTemplate]);
+    setSelectedTemplate(newTemplate);
+    await putTemplate({ id, base64, createdAt: Date.now() });
+  };
+
   const handlePickAndContinue = async () => {
     const tpl = selectedTemplate || blankTemplate;
     if (!selectedTemplate) {
@@ -201,6 +223,13 @@ export default function AtelierGallery({ onBack, onPick }: AtelierGalleryProps) 
         style={{ display: 'none' }}
         onChange={handleUploadReference}
       />
+      <input
+        ref={directUploadInputRef}
+        type="file"
+        accept="image/*"
+        style={{ display: 'none' }}
+        onChange={handleDirectUpload}
+      />
       {/* Topbar */}
       <header
         style={{
@@ -223,11 +252,18 @@ export default function AtelierGallery({ onBack, onPick }: AtelierGalleryProps) 
         <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
           <button
             className="atl-btn"
-            title="Upload a reference image to guide template generation"
+            title="Upload an image directly as a background template (no analysis)"
+            onClick={() => directUploadInputRef.current?.click()}
+          >
+            <Upload size={13} /> Upload template
+          </button>
+          <button
+            className="atl-btn"
+            title="Upload a reference image to analyze and guide template generation"
             onClick={() => refImageInputRef.current?.click()}
             disabled={isAnalyzing}
           >
-            <Upload size={13} /> {isAnalyzing ? 'Analyzing…' : 'Upload reference'}
+            <Sparkles size={13} /> {isAnalyzing ? 'Analyzing…' : 'Analyze reference'}
           </button>
           <button
             className="atl-btn"

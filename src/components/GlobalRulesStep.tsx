@@ -8,6 +8,7 @@ import { useToast } from './Toast';
 import PromptStrengthener from './PromptStrengthener';
 import type { AspectRatio } from '@/lib/types';
 import { createBlankTemplate } from '@/lib/template';
+import { putTemplate } from '@/lib/idb';
 
 const aspectRatios: { value: AspectRatio; label: string }[] = [
     { value: '16:9', label: '16:9 — Widescreen' },
@@ -36,6 +37,7 @@ export default function GlobalRulesStep() {
     const [isDragOver, setIsDragOver] = useState(false);
     const [uploadedPreview, setUploadedPreview] = useState<string | null>(null);
     const fileInputRef = useRef<HTMLInputElement>(null);
+    const directUploadRef = useRef<HTMLInputElement>(null);
 
     const handleGenerate = async () => {
         if (!globalPrompt.trim()) {
@@ -154,6 +156,36 @@ export default function GlobalRulesStep() {
 
     const handleDragLeave = () => setIsDragOver(false);
 
+    const handleDirectUpload = useCallback(async (file: File) => {
+        if (!file.type.startsWith('image/')) {
+            showToast('error', 'Invalid File', 'Please upload an image file (PNG, JPG, WebP).');
+            return;
+        }
+        if (file.size > 10 * 1024 * 1024) {
+            showToast('error', 'File Too Large', 'Please upload an image under 10MB.');
+            return;
+        }
+
+        const base64 = await new Promise<string>((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onload = () => {
+                const result = reader.result as string;
+                const idx = result.indexOf(',');
+                resolve(idx >= 0 ? result.substring(idx + 1) : result);
+            };
+            reader.onerror = reject;
+            reader.readAsDataURL(file);
+        });
+
+        const templateId = `upload-${Date.now()}`;
+        const template = { id: templateId, base64 };
+        setTemplateImages([template]);
+        setSelectedTemplate(template);
+        await putTemplate({ id: templateId, base64, createdAt: Date.now() });
+        showToast('success', 'Template Uploaded', `"${file.name}" set as background template.`);
+        setTimeout(() => setStep(3), 400);
+    }, [setTemplateImages, setSelectedTemplate, setStep, showToast]);
+
     const handleStartBlank = () => {
         const blankTemplate = createBlankTemplate(aspectRatio);
         setTemplateImages([]);
@@ -188,70 +220,120 @@ export default function GlobalRulesStep() {
                 </p>
             </div>
 
-            {/* ─── Upload Template Zone ─── */}
-            <div style={{ marginBottom: 32 }}>
-                <label className="label">
-                    <Upload size={12} style={{ display: 'inline', marginRight: 4, verticalAlign: 'middle' }} />
-                    Upload a Template to Learn From
-                    <span style={{ color: 'var(--color-text-muted)', fontWeight: 400, textTransform: 'none', marginLeft: 4 }}>(skip to builder)</span>
-                </label>
-                <div
-                    onDrop={handleDrop}
-                    onDragOver={handleDragOver}
-                    onDragLeave={handleDragLeave}
-                    onClick={() => !isAnalyzing && fileInputRef.current?.click()}
-                    style={{
-                        border: `2px dashed ${isDragOver ? 'var(--color-accent-cyan)' : 'var(--color-border-default)'}`,
-                        borderRadius: 12,
-                        padding: uploadedPreview ? 0 : '32px 24px',
-                        textAlign: 'center',
-                        cursor: isAnalyzing ? 'wait' : 'pointer',
-                        background: isDragOver ? 'rgba(0,212,255,0.05)' : 'var(--color-bg-secondary)',
-                        transition: 'all 0.2s ease',
-                        overflow: 'hidden',
-                        position: 'relative',
-                    }}
-                >
-                    {isAnalyzing ? (
-                        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 12, padding: uploadedPreview ? 32 : 0 }}>
-                            <div className="spinner" style={{ width: 24, height: 24, borderWidth: 2 }} />
-                            <span style={{ color: 'var(--color-accent-cyan)', fontSize: 13, fontWeight: 500 }}>
-                                Analyzing template with Gemini...
-                            </span>
-                        </div>
-                    ) : uploadedPreview ? (
-                        <div style={{ position: 'relative', aspectRatio: '16/9' }}>
-                            {/* eslint-disable-next-line @next/next/no-img-element */}
-                            <img
-                                src={uploadedPreview}
-                                alt="Uploaded template"
-                                style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
-                            />
-                            <div style={{
-                                position: 'absolute',
-                                bottom: 8,
-                                right: 8,
-                                background: 'rgba(0,0,0,0.7)',
-                                borderRadius: 6,
-                                padding: '4px 10px',
-                                fontSize: 11,
-                                color: 'var(--color-accent-green)',
-                                fontWeight: 500,
-                            }}>
-                                ✓ Analyzed
+            {/* ─── Upload Template Zones ─── */}
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 32 }}>
+                {/* Direct upload — no analysis */}
+                <div>
+                    <label className="label">
+                        <Upload size={12} style={{ display: 'inline', marginRight: 4, verticalAlign: 'middle' }} />
+                        Upload Background Template
+                    </label>
+                    <div
+                        onClick={() => directUploadRef.current?.click()}
+                        style={{
+                            border: '2px dashed var(--color-border-default)',
+                            borderRadius: 12,
+                            padding: '32px 24px',
+                            textAlign: 'center',
+                            cursor: 'pointer',
+                            background: 'var(--color-bg-secondary)',
+                            transition: 'all 0.2s ease',
+                            minHeight: 140,
+                            display: 'flex',
+                            flexDirection: 'column',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                        }}
+                    >
+                        <ImageIcon size={28} style={{ color: 'var(--color-text-muted)', marginBottom: 8 }} />
+                        <p style={{ color: 'var(--color-text-secondary)', fontSize: 14, marginBottom: 4 }}>
+                            Use as-is, <span style={{ color: 'var(--color-accent-cyan)' }}>click to browse</span>
+                        </p>
+                        <p style={{ color: 'var(--color-text-muted)', fontSize: 12 }}>
+                            No AI analysis — jumps straight to builder
+                        </p>
+                    </div>
+                    <input
+                        ref={directUploadRef}
+                        type="file"
+                        accept="image/*"
+                        style={{ display: 'none' }}
+                        onChange={(e) => {
+                            const file = e.target.files?.[0];
+                            if (file) handleDirectUpload(file);
+                            e.target.value = '';
+                        }}
+                    />
+                </div>
+
+                {/* Analyze upload — AI learns style */}
+                <div>
+                    <label className="label">
+                        <Sparkles size={12} style={{ display: 'inline', marginRight: 4, verticalAlign: 'middle' }} />
+                        Upload &amp; Analyze Reference
+                    </label>
+                    <div
+                        onDrop={handleDrop}
+                        onDragOver={handleDragOver}
+                        onDragLeave={handleDragLeave}
+                        onClick={() => !isAnalyzing && fileInputRef.current?.click()}
+                        style={{
+                            border: `2px dashed ${isDragOver ? 'var(--color-accent-cyan)' : 'var(--color-border-default)'}`,
+                            borderRadius: 12,
+                            padding: uploadedPreview ? 0 : '32px 24px',
+                            textAlign: 'center',
+                            cursor: isAnalyzing ? 'wait' : 'pointer',
+                            background: isDragOver ? 'rgba(0,212,255,0.05)' : 'var(--color-bg-secondary)',
+                            transition: 'all 0.2s ease',
+                            overflow: 'hidden',
+                            minHeight: 140,
+                            display: 'flex',
+                            flexDirection: 'column',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                        }}
+                    >
+                        {isAnalyzing ? (
+                            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 12 }}>
+                                <div className="spinner" style={{ width: 24, height: 24, borderWidth: 2 }} />
+                                <span style={{ color: 'var(--color-accent-cyan)', fontSize: 13, fontWeight: 500 }}>
+                                    Analyzing with Gemini...
+                                </span>
                             </div>
-                        </div>
-                    ) : (
-                        <>
-                            <ImageIcon size={28} style={{ color: 'var(--color-text-muted)', marginBottom: 8 }} />
-                            <p style={{ color: 'var(--color-text-secondary)', fontSize: 14, marginBottom: 4 }}>
-                                Drag & drop a slide image here, or <span style={{ color: 'var(--color-accent-cyan)' }}>click to browse</span>
-                            </p>
-                            <p style={{ color: 'var(--color-text-muted)', fontSize: 12 }}>
-                                PNG, JPG, or WebP up to 10MB — AI will learn the style and auto-generate prompts
-                            </p>
-                        </>
-                    )}
+                        ) : uploadedPreview ? (
+                            <div style={{ position: 'relative', aspectRatio: '16/9', width: '100%' }}>
+                                {/* eslint-disable-next-line @next/next/no-img-element */}
+                                <img
+                                    src={uploadedPreview}
+                                    alt="Uploaded template"
+                                    style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
+                                />
+                                <div style={{
+                                    position: 'absolute',
+                                    bottom: 8,
+                                    right: 8,
+                                    background: 'rgba(0,0,0,0.7)',
+                                    borderRadius: 6,
+                                    padding: '4px 10px',
+                                    fontSize: 11,
+                                    color: 'var(--color-accent-green)',
+                                    fontWeight: 500,
+                                }}>
+                                    Analyzed
+                                </div>
+                            </div>
+                        ) : (
+                            <>
+                                <ImageIcon size={28} style={{ color: 'var(--color-text-muted)', marginBottom: 8 }} />
+                                <p style={{ color: 'var(--color-text-secondary)', fontSize: 14, marginBottom: 4 }}>
+                                    AI learns style, <span style={{ color: 'var(--color-accent-cyan)' }}>click to browse</span>
+                                </p>
+                                <p style={{ color: 'var(--color-text-muted)', fontSize: 12 }}>
+                                    Auto-generates prompts from your image
+                                </p>
+                            </>
+                        )}
+                    </div>
                     <input
                         ref={fileInputRef}
                         type="file"

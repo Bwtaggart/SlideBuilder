@@ -25,6 +25,10 @@ export default function SlideInspector() {
         isGeneratingSlide,
         setIsGeneratingSlide,
         clearChat,
+        matchFirstSlideStyle,
+        autoQaCheck,
+        setMatchFirstSlideStyle,
+        setAutoQaCheck,
     } = usePresentationStore();
     const { addCost } = useCostStore();
     const { showToast } = useToast();
@@ -39,6 +43,40 @@ export default function SlideInspector() {
         setPendingMask(box);
     }, []);
 
+    // Non-blocking second-pass QA: inspect a rendered slide image for spelling,
+    // legibility, and instruction-adherence issues and flag (never auto-fix) them.
+    const runQaCheck = useCallback(
+        async (slideIndex: number, imageDataUrl: string, prompt: string) => {
+            try {
+                const res = await fetch('/api/qa-check', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        imageBase64: imageDataUrl.replace(/^data:image\/\w+;base64,/, ''),
+                        slidePrompt: prompt,
+                    }),
+                });
+                if (!res.ok) return;
+                const data = await res.json();
+                const issues: string[] = [
+                    ...(data.spellingIssues || []),
+                    ...(data.legibilityIssues || []),
+                    ...(data.instructionIssues || []),
+                ];
+                updateSlide(slideIndex, {
+                    qa_passed: Boolean(data.passedQA),
+                    qa_issues: issues,
+                });
+                if (data.tokensUsed) {
+                    addCost('gemini_text', data.tokensUsed);
+                }
+            } catch {
+                // QA is best-effort; ignore failures.
+            }
+        },
+        [updateSlide, addCost],
+    );
+
     const slide = slides[activeSlideIndex];
     if (!slide) return null;
 
@@ -46,6 +84,14 @@ export default function SlideInspector() {
         if (!selectedTemplate) return;
         setIsGeneratingSlide(true);
         clearChat();
+
+        // Carry the first slide's rendered look forward to every later slide.
+        const firstSlideImage = slides[0]?.image_url;
+        const styleReferenceBase64 =
+            matchFirstSlideStyle && activeSlideIndex > 0 && firstSlideImage
+                ? firstSlideImage.replace(/^data:image\/\w+;base64,/, '')
+                : undefined;
+        const combinedPrompt = `${globalPrompt}. ${slide.local_prompt}`;
 
         try {
             const imageRequests = Array.from({ length: variationCount }, (_, index) =>
@@ -55,11 +101,12 @@ export default function SlideInspector() {
                     body: JSON.stringify({
                         templateBase64: selectedTemplate.base64,
                         templateId: selectedTemplate.id,
-                        slidePrompt: `${globalPrompt}. ${slide.local_prompt}`,
+                        slidePrompt: combinedPrompt,
                         aspectRatio,
                         negativePrompt,
                         variationIndex: index + 1,
                         totalVariations: variationCount,
+                        styleReferenceBase64,
                     }),
                 })
             );
@@ -106,6 +153,9 @@ export default function SlideInspector() {
 
             const updates: Partial<Slide> = {
                 image_url: imagePayloads[0],
+                // Clear any stale QA result from a previous render of this slide.
+                qa_passed: undefined,
+                qa_issues: undefined,
             };
             addCost('nano_banana_image', imagePayloads.length);
 
@@ -128,6 +178,13 @@ export default function SlideInspector() {
                     speaker_notes: typeof updates.speaker_notes === 'string' ? updates.speaker_notes : slide.speaker_notes,
                 }));
                 insertSlidesAfter(activeSlideIndex, insertedSlides);
+            }
+
+            // Fire the second-pass QA check for each generated image (non-blocking).
+            if (autoQaCheck) {
+                imagePayloads.forEach((imageUrl, i) => {
+                    void runQaCheck(activeSlideIndex + i, imageUrl, combinedPrompt);
+                });
             }
 
             const successMessage = imagePayloads.length === variationCount
@@ -259,8 +316,29 @@ export default function SlideInspector() {
                                 <option value={4}>4 variations</option>
                             </select>
                         </div>
-                        <div style={{ color: 'var(--color-text-muted)', fontSize: 12, paddingBottom: 10 }}>
-                            Use the Inpaint tool below the preview to fix or change wording after generation.
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: 8, paddingBottom: 4 }}>
+                            {activeSlideIndex === 0 ? (
+                                <span style={{ color: 'var(--color-text-muted)', fontSize: 12 }}>
+                                    This is slide 1 — its rendered style becomes the reference for the rest of the deck.
+                                </span>
+                            ) : (
+                                <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 12, color: 'var(--color-text-secondary)', cursor: 'pointer' }}>
+                                    <input
+                                        type="checkbox"
+                                        checked={matchFirstSlideStyle}
+                                        onChange={(e) => setMatchFirstSlideStyle(e.target.checked)}
+                                    />
+                                    Match first slide&rsquo;s style
+                                </label>
+                            )}
+                            <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 12, color: 'var(--color-text-secondary)', cursor: 'pointer' }}>
+                                <input
+                                    type="checkbox"
+                                    checked={autoQaCheck}
+                                    onChange={(e) => setAutoQaCheck(e.target.checked)}
+                                />
+                                Auto QA check (spelling &amp; legibility)
+                            </label>
                         </div>
                     </div>
 
@@ -358,6 +436,34 @@ export default function SlideInspector() {
                     </div>
                 )}
             </div>
+
+            {/* ─── QA Warning Badge ─── */}
+            {slide.image_url && slide.qa_passed === false && (slide.qa_issues?.length ?? 0) > 0 && (
+                <div
+                    style={{
+                        display: 'flex',
+                        gap: 10,
+                        padding: 14,
+                        marginTop: 16,
+                        borderRadius: 8,
+                        border: '1px solid rgba(245,158,11,0.4)',
+                        background: 'rgba(245,158,11,0.08)',
+                        animation: 'fade-in 0.4s ease-out',
+                    }}
+                >
+                    <ShieldAlert size={16} style={{ color: '#f59e0b', flexShrink: 0, marginTop: 2 }} />
+                    <div>
+                        <div style={{ fontSize: 12, fontWeight: 600, color: '#f59e0b', marginBottom: 6 }}>
+                            QA flagged {slide.qa_issues!.length} issue{slide.qa_issues!.length === 1 ? '' : 's'} — review before exporting
+                        </div>
+                        <ul style={{ margin: 0, paddingLeft: 18, color: 'var(--color-text-secondary)', fontSize: 13, lineHeight: 1.6 }}>
+                            {slide.qa_issues!.map((issue, i) => (
+                                <li key={i}>{issue}</li>
+                            ))}
+                        </ul>
+                    </div>
+                </div>
+            )}
 
             {/* ─── Speaker Notes ─── */}
             {slide.speaker_notes && (

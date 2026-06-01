@@ -1,0 +1,167 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>SlideBuilder — Atelier prototype</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,500;0,9..144,600;0,9..144,700;1,9..144,400&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  html, body { margin:0; padding:0; height:100%; background:#1a1a1c; font-family:'Inter',system-ui,sans-serif; color:#e8e8e8; }
+  #root { height:100%; }
+  body { overflow:hidden; }
+</style>
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+</head>
+<body>
+<div id="root"></div>
+
+<script type="text/babel" src="design-canvas.jsx"></script>
+<script type="text/babel" src="tweaks-panel.jsx"></script>
+<script type="text/babel" src="mock-data.jsx"></script>
+<script type="text/babel" src="proto-atelier.jsx"></script>
+
+<script type="text/babel" data-presets="react">
+const TWEAK_DEFAULTS = /*EDITMODE-BEGIN*/{
+  "atelierAccent": "#1a3a3a",
+  "density": "comfortable"
+}/*EDITMODE-END*/;
+
+function TweaksUI() {
+  const [t, setTweak] = useTweaks(TWEAK_DEFAULTS);
+  return (
+    <TweaksPanel title="Tweaks">
+      <TweakSection title="Atelier">
+        <TweakColor label="Accent" value={t.atelierAccent} onChange={v => setTweak('atelierAccent', v)}
+          options={['#1a3a3a','#5b3a29','#283593','#5e1742','#0d4f3c']} />
+        <TweakRadio label="Density" value={t.density} onChange={v => setTweak('density', v)}
+          options={[{value:'comfortable',label:'Comfortable'},{value:'compact',label:'Compact'}]} />
+      </TweakSection>
+    </TweaksPanel>
+  );
+}
+
+function App() {
+  const [t] = useTweaks(TWEAK_DEFAULTS);
+  const tw = { accent: t.atelierAccent, density: t.density };
+
+  return (
+    <>
+      <DesignCanvas
+        title="Atelier · full prototype"
+        subtitle="Click-through redesign of the entire SlideBuilder flow. Each artboard is interactive — open one fullscreen and drive it.">
+
+        <DCSection id="intro" title="Read me first">
+          <DCArtboard id="readme" label="What's here" width={760} height={520}>
+            <ReadmeCard accent={t.atelierAccent} />
+          </DCArtboard>
+        </DCSection>
+
+        <DCSection id="entry" title="Entry · home & onboarding" subtitle="Where the user lands. Two states: returning user with projects, and a first-run empty state.">
+          <DCArtboard id="home" label="Home · returning user" width={1280} height={820}>
+            <AtelierHome accent={tw.accent} density={tw.density} onNew={()=>{}} onOpenProject={()=>{}} />
+          </DCArtboard>
+          <DCArtboard id="home-empty" label="Home · first run (empty)" width={1280} height={820}>
+            <AtelierHome accent={tw.accent} density={tw.density} empty onNew={()=>{}} />
+          </DCArtboard>
+        </DCSection>
+
+        <DCSection id="setup" title="Setup · template gallery" subtitle="Replaces the old wizard step 2. Full-screen browseable library with a 'describe instead' AI fallback in the sidebar.">
+          <DCArtboard id="gallery" label="Template gallery" width={1280} height={820}>
+            <AtelierGallery accent={tw.accent} onBack={()=>{}} onPick={()=>{}} />
+          </DCArtboard>
+        </DCSection>
+
+        <DCSection id="render" title="Generating · loading state" subtitle="Lives in the workspace shell so users can already see the outline filling in. Per-slide skeleton + progress bar + cost-of-this-run.">
+          <DCArtboard id="generating" label="Generating deck" width={1280} height={820}>
+            <AtelierGenerating accent={tw.accent} />
+          </DCArtboard>
+        </DCSection>
+
+        <DCSection id="edit" title="Edit · main workspace" subtitle="The core editor. Outline left, stage centre, form below the slide, contextual drawer on the right for chat or style.">
+          <DCArtboard id="workspace" label="Workspace · editing a slide" width={1280} height={820}>
+            <AtelierFullProto tweaks={tw} startView="workspace" />
+          </DCArtboard>
+          <DCArtboard id="workspace-discuss" label="Workspace · Discuss drawer open" width={1280} height={820}>
+            <AtelierFullProto tweaks={tw} startView="workspace" autoDrawer="discuss" />
+          </DCArtboard>
+        </DCSection>
+
+        <DCSection id="exit" title="Exit · export flow" subtitle="Modal over the workspace. Format and fidelity in one calm card.">
+          <DCArtboard id="export" label="Export modal" width={1280} height={820}>
+            <AtelierExport accent={tw.accent} onClose={()=>{}} />
+          </DCArtboard>
+        </DCSection>
+
+        <DCSection id="flow" title="End-to-end · full clickable flow" subtitle="Drive the prototype yourself: starts on the home screen, click 'New deck' to walk through gallery → generating → workspace → export.">
+          <DCArtboard id="flow" label="Full flow (clickable)" width={1280} height={820}>
+            <AtelierFullProto tweaks={tw} startView="home" />
+          </DCArtboard>
+        </DCSection>
+      </DesignCanvas>
+      <TweaksUI />
+    </>
+  );
+}
+
+// Wrapper that opens a drawer after mount (for the workspace-with-drawer artboard).
+function AtelierFullProto({ tweaks, startView, autoDrawer }) {
+  const ref = React.useRef(null);
+  React.useEffect(() => {
+    if (!autoDrawer) return;
+    const t = setTimeout(() => {
+      const root = ref.current;
+      if (!root) return;
+      const labelMap = { discuss: /^discuss$/i, style: /^style$/i };
+      const re = labelMap[autoDrawer];
+      if (!re) return;
+      for (const b of root.querySelectorAll('button')) {
+        if (re.test(b.textContent.trim())) { b.click(); break; }
+      }
+    }, 80);
+    return () => clearTimeout(t);
+  }, [autoDrawer]);
+  return <div ref={ref} style={{ height:'100%' }}><AtelierProto tweaks={tweaks} startView={startView} /></div>;
+}
+
+function ReadmeCard({ accent }) {
+  return (
+    <div style={{ width:'100%', height:'100%', background:'#faf8f4', color:'#1a1a1a', padding:'48px 56px', boxSizing:'border-box', overflow:'auto', fontFamily:'Inter,system-ui,sans-serif' }}>
+      <div style={{ fontFamily:'JetBrains Mono,monospace', fontSize:11, letterSpacing:'.18em', textTransform:'uppercase', color:'#7a6f56', marginBottom:14 }}>
+        Atelier · full prototype
+      </div>
+      <h1 style={{ fontFamily:'Fraunces,serif', fontSize:42, fontWeight:500, letterSpacing:-1, margin:'0 0 16px', lineHeight:1.05 }}>
+        The whole flow, in one calmer place.
+      </h1>
+      <p style={{ fontSize:15, lineHeight:1.65, color:'#5a5446', maxWidth:640, margin:'0 0 28px' }}>
+        Direction A and C have been retired. This canvas now holds the full Atelier flow as a clickable redesign — from first-run empty state through to a finished export. Walk it screen by screen below, or open the last artboard fullscreen and drive the whole thing yourself.
+      </p>
+      <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:14 }}>
+        {[
+          { name:'Home (×2)', body:'Returning user with project grid + cost-of-month. Empty first-run state with three quick-start templates.' },
+          { name:'Template gallery', body:'Full-screen library with filter rail. AI fallback: describe a template in plain English and the system generates one.' },
+          { name:'Generating', body:'Per-slide skeleton outline so progress is legible. Cost-of-run sits next to the progress bar.' },
+          { name:'Workspace', body:'Outline left, stage centre, form below stage, contextual drawer for chat or style. Stage and outline always visible.' },
+          { name:'Export modal', body:'Calmer than today: format → fidelity → filename. Hybrid editable is the recommended default.' },
+          { name:'Full flow', body:'Last artboard is the same prototype starting on the home screen — click through end-to-end.' },
+        ].map(d => (
+          <div key={d.name} style={{ background:'#fff', border:'1px solid #e8e1cf', borderRadius:10, padding:'14px 16px' }}>
+            <div style={{ fontFamily:'Fraunces,serif', fontSize:16, marginBottom:6, color:accent }}>{d.name}</div>
+            <p style={{ fontSize:12.5, lineHeight:1.55, color:'#5a5446', margin:0 }}>{d.body}</p>
+          </div>
+        ))}
+      </div>
+      <div style={{ marginTop:24, padding:'14px 18px', background:`${accent}10`, border:`1px solid ${accent}30`, borderRadius:8, fontSize:13, color:'#1a1a1a', lineHeight:1.55 }}>
+        <strong style={{ color:accent }}>Common moves throughout:</strong> wizard removed · style + templates one click away from the workspace · cost widget always visible · auto-save status in the topbar · outline always shows the deck shape.
+      </div>
+    </div>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById('root')).render(<App/>);
+</script>
+</body>
+</html>

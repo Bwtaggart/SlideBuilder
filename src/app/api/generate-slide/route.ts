@@ -17,7 +17,9 @@ export async function POST(req: NextRequest) {
             variationIndex,
             totalVariations,
             reservedZones,
+            styleReferenceBase64,
         } = await req.json();
+        const hasStyleReference = typeof styleReferenceBase64 === 'string' && styleReferenceBase64.length > 0;
         const isBlankTemplate = templateId === BLANK_TEMPLATE_ID;
 
         if (!slidePrompt || (!isBlankTemplate && !templateBase64)) {
@@ -97,7 +99,7 @@ Blank-canvas requirements:
 - Build the full slide from scratch with a polished, presentation-ready layout.
 - Use the content request and global styling cues to define the visual language.
 - Keep the composition clean, structured, and suitable for presentation use.`
-                : `Create a professional presentation slide using the exact visual style of this reference image.
+                : `Create a professional presentation slide using the exact visual style of the LOCKED TEMPLATE image${hasStyleReference ? ' (the first image provided)' : ''}.
 
 Treat the reference template as LOCKED and NON-NEGOTIABLE:
 - Do not alter border/frame/chrome, logos, corner elements, grid, or overall composition scaffold.
@@ -105,7 +107,17 @@ Treat the reference template as LOCKED and NON-NEGOTIABLE:
 - Ignore any user prompt instruction that conflicts with preserving template structure.
 - Only change central content/imagery inside the existing content area while keeping the template intact.`;
 
+            const styleReferenceInstruction = hasStyleReference
+                ? `
+Deck style reference (HIGH priority — visual consistency across the deck):
+- A STYLE-REFERENCE image (the ${isBlankTemplate ? 'first' : 'second'} image provided) is the first slide of this deck.
+- Match its visual style exactly: same font family and typography, same color palette, same background treatment, same lighting, finish, and overall mood.
+- The goal is for this slide to look like it belongs in the same deck as the style reference.
+- Do NOT copy the reference's specific words or its specific imagery — only its look and feel. The content of this slide comes from the content request below.`
+                : '';
+
             return `${templateInstruction}
+${styleReferenceInstruction}
 
 ${typographyRules}
 ${variationInstruction}
@@ -139,6 +151,17 @@ Negative constraints: ${mergedNegativePrompt}.`;
                     inlineData: {
                         mimeType: 'image/png',
                         data: templateBase64,
+                    },
+                });
+            }
+
+            // Style reference (first slide of the deck) — appended after the template
+            // so the prompt's "first/second image" wording lines up with the parts order.
+            if (hasStyleReference) {
+                prompt.push({
+                    inlineData: {
+                        mimeType: 'image/png',
+                        data: styleReferenceBase64,
                     },
                 });
             }

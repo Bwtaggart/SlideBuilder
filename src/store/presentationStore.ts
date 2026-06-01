@@ -18,6 +18,12 @@ interface PresentationState {
     setNegativePrompt: (prompt: string) => void;
     setAspectRatio: (ratio: AspectRatio) => void;
 
+    // Deck-wide generation options
+    matchFirstSlideStyle: boolean;
+    autoQaCheck: boolean;
+    setMatchFirstSlideStyle: (v: boolean) => void;
+    setAutoQaCheck: (v: boolean) => void;
+
     // Templates (Step 2)
     templateImages: TemplateImage[];
     selectedTemplate: TemplateImage | null;
@@ -75,6 +81,12 @@ export const usePresentationStore = create<PresentationState>((set, get) => ({
     setGlobalPrompt: (prompt) => set({ globalPrompt: prompt }),
     setNegativePrompt: (prompt) => set({ negativePrompt: prompt }),
     setAspectRatio: (ratio) => set({ aspectRatio: ratio }),
+
+    // Deck-wide generation options
+    matchFirstSlideStyle: true,
+    autoQaCheck: true,
+    setMatchFirstSlideStyle: (v) => set({ matchFirstSlideStyle: v }),
+    setAutoQaCheck: (v) => set({ autoQaCheck: v }),
 
     // Templates
     templateImages: [],
